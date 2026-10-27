@@ -15,6 +15,7 @@ final class Shortcodes {
 	public function register(): void {
 		add_shortcode( 'crowdfunding_campaigns', array( $this, 'render_campaigns' ) );
 		add_shortcode( 'crowdfunding_campaign', array( $this, 'render_campaign' ) );
+		add_filter( 'the_content', array( $this, 'enhance_single_campaign_content' ), 20 );
 	}
 
 	public function render_campaigns( array|string $atts = array() ): string {
@@ -98,10 +99,7 @@ final class Shortcodes {
 				</div>
 			<?php endif; ?>
 
-			<div class="cfwp-campaign__facts">
-				<?php echo $this->render_goal( $goal_amount, $currency ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-				<?php echo $this->render_deadline( $deadline ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-			</div>
+			<?php echo $this->render_facts( $goal_amount, $currency, $deadline, 'cfwp-campaign__facts' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
 			<div class="cfwp-campaign__content">
 				<?php echo wp_kses_post( $content ); ?>
@@ -109,6 +107,35 @@ final class Shortcodes {
 		</article>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	public function enhance_single_campaign_content( string $content ): string {
+		if (
+			is_admin()
+			|| ! is_singular( Campaigns::POST_TYPE )
+			|| ! in_the_loop()
+			|| ! is_main_query()
+			|| has_shortcode( $content, 'crowdfunding_campaign' )
+		) {
+			return $content;
+		}
+
+		$campaign_id = get_the_ID();
+		if ( $campaign_id <= 0 ) {
+			return $content;
+		}
+
+		$goal_amount = (float) get_post_meta( $campaign_id, Campaigns::META_GOAL_AMOUNT, true );
+		$currency    = (string) get_post_meta( $campaign_id, Campaigns::META_CURRENCY, true );
+		$deadline    = (string) get_post_meta( $campaign_id, Campaigns::META_DEADLINE, true );
+		$facts       = $this->render_facts( $goal_amount, $currency, $deadline, 'cfwp-campaign__facts cfwp-campaign__facts--single' );
+
+		if ( '' === $facts ) {
+			return $content;
+		}
+
+		$this->enqueue_assets();
+		return $facts . $content;
 	}
 
 	private function render_card( \WP_Post $campaign ): string {
@@ -137,10 +164,7 @@ final class Shortcodes {
 					<p class="cfwp-campaign-card__excerpt"><?php echo esc_html( $excerpt ); ?></p>
 				<?php endif; ?>
 
-				<div class="cfwp-campaign-card__facts">
-					<?php echo $this->render_goal( $goal_amount, $currency ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-					<?php echo $this->render_deadline( $deadline ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-				</div>
+				<?php echo $this->render_facts( $goal_amount, $currency, $deadline, 'cfwp-campaign-card__facts' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
 				<a class="cfwp-campaign-card__link" href="<?php echo esc_url( get_permalink( $campaign ) ); ?>">
 					<?php esc_html_e( 'View campaign', 'crowdfunding-wordpress' ); ?>
@@ -149,6 +173,22 @@ final class Shortcodes {
 		</article>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	private function render_facts( float $goal_amount, string $currency, string $deadline, string $class_name ): string {
+		$goal     = $this->render_goal( $goal_amount, $currency );
+		$end_date = $this->render_deadline( $deadline );
+
+		if ( '' === $goal && '' === $end_date ) {
+			return '';
+		}
+
+		return sprintf(
+			'<div class="%1$s">%2$s%3$s</div>',
+			esc_attr( $class_name ),
+			$goal,
+			$end_date
+		);
 	}
 
 	private function render_goal( float $goal_amount, string $currency ): string {
