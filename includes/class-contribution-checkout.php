@@ -21,6 +21,7 @@ final class Contribution_Checkout {
 
 	public function register(): void {
 		add_shortcode( 'crowdfunding_contribute', array( $this, 'render' ) );
+		add_filter( 'the_content', array( $this, 'enhance_single_campaign_content' ), 30 );
 		add_action( 'admin_post_' . self::ACTION, array( $this, 'handle' ) );
 		add_action( 'admin_post_nopriv_' . self::ACTION, array( $this, 'handle' ) );
 		add_action( 'woocommerce_before_calculate_totals', array( $this, 'apply_cart_item_price' ), 20, 1 );
@@ -30,14 +31,14 @@ final class Contribution_Checkout {
 		add_filter( 'woocommerce_coupon_is_valid_for_product', array( $this, 'exclude_contribution_from_coupons' ), 10, 4 );
 	}
 
-	public function render( array $atts = array() ): string {
+	public function render( array|string $atts = array() ): string {
 		if ( ! class_exists( 'WooCommerce' ) || ! function_exists( 'get_woocommerce_currency' ) ) {
 			return '<p>' . esc_html__( 'WooCommerce is required to accept contributions.', 'crowdfunding-wordpress' ) . '</p>';
 		}
 
 		$atts = shortcode_atts(
 			array( 'id' => 0 ),
-			$atts,
+			is_array( $atts ) ? $atts : array(),
 			'crowdfunding_contribute'
 		);
 
@@ -56,6 +57,8 @@ final class Contribution_Checkout {
 		if ( '' === $currency || $currency !== $store_currency ) {
 			return '<p>' . esc_html__( 'This campaign currency does not match the WooCommerce store currency.', 'crowdfunding-wordpress' ) . '</p>';
 		}
+
+		$this->enqueue_assets();
 
 		$minimum    = $this->minimum_amount( $campaign_id );
 		$return_url = self::current_url();
@@ -90,6 +93,25 @@ final class Contribution_Checkout {
 		<?php
 
 		return (string) ob_get_clean();
+	}
+
+	public function enhance_single_campaign_content( string $content ): string {
+		if (
+			is_admin()
+			|| ! is_singular( Campaigns::POST_TYPE )
+			|| ! in_the_loop()
+			|| ! is_main_query()
+			|| has_shortcode( $content, 'crowdfunding_contribute' )
+		) {
+			return $content;
+		}
+
+		$campaign_id = get_the_ID();
+		if ( $campaign_id <= 0 ) {
+			return $content;
+		}
+
+		return $content . $this->render( array( 'id' => $campaign_id ) );
 	}
 
 	public function handle(): void {
@@ -268,7 +290,7 @@ final class Contribution_Checkout {
 	public function exclude_contribution_from_coupons( bool $valid, mixed $product, mixed $coupon, mixed $values ): bool {
 		unset( $coupon, $values );
 
-		$product_id = is_object( $product ) && method_exists( $product, 'get_id' ) ? (int) $product->get_id() : 0;
+		$product_id     = is_object( $product ) && method_exists( $product, 'get_id' ) ? (int) $product->get_id() : 0;
 		$placeholder_id = absint( get_option( self::PRODUCT_OPTION, 0 ) );
 
 		return $placeholder_id > 0 && $product_id === $placeholder_id ? false : $valid;
@@ -359,6 +381,15 @@ final class Contribution_Checkout {
 		}
 
 		return ( (int) $whole * 100 ) + (int) $fraction;
+	}
+
+	private function enqueue_assets(): void {
+		wp_enqueue_style(
+			'crowdfunding-wordpress-public',
+			CFWP_PLUGIN_URL . 'assets/css/public.css',
+			array(),
+			CFWP_VERSION
+		);
 	}
 
 	private static function current_url(): string {
