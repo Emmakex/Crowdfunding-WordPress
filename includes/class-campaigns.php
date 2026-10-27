@@ -43,6 +43,10 @@ final class Campaigns {
 				'rewrite'             => array( 'slug' => 'crowdfunding' ),
 				'menu_icon'           => 'dashicons-megaphone',
 				'supports'            => array( 'title', 'editor', 'excerpt', 'thumbnail', 'author' ),
+				'capability_type'     => array( 'cfwp_campaign', 'cfwp_campaigns' ),
+				'capabilities'        => array(
+					'create_posts' => 'edit_cfwp_campaigns',
+				),
 				'map_meta_cap'        => true,
 				'delete_with_user'    => false,
 				'show_in_nav_menus'   => true,
