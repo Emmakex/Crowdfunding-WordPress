@@ -86,7 +86,7 @@ final class Promoter_Dashboard {
 		$currency    = (string) get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true );
 		$deadline    = (string) get_post_meta( $campaign->ID, Campaigns::META_DEADLINE, true );
 		$status       = get_post_status_object( $campaign->post_status );
-		$status_label = $status instanceof \stdClass && isset( $status->label ) ? (string) $status->label : $campaign->post_status;
+		$status_label = is_object( $status ) && isset( $status->label ) ? (string) $status->label : $campaign->post_status;
 
 		ob_start();
 		?>
@@ -134,19 +134,21 @@ final class Promoter_Dashboard {
 		}
 
 		$base_url = remove_query_arg( self::QUERY_PAGE );
-		$links    = paginate_links(
-			array(
-				'base'      => add_query_arg( self::QUERY_PAGE, '%#%', $base_url ),
-				'format'    => '',
-				'current'   => $page,
-				'total'     => $max_pages,
-				'type'      => 'list',
-				'prev_text' => __( 'Previous', 'crowdfunding-wordpress' ),
-				'next_text' => __( 'Next', 'crowdfunding-wordpress' ),
-			)
-		);
+		$output   = '<nav class="cfwp-dashboard__pagination" aria-label="' . esc_attr__( 'Campaign pagination', 'crowdfunding-wordpress' ) . '"><ul>';
 
-		return $links ? '<nav class="cfwp-dashboard__pagination" aria-label="' . esc_attr__( 'Campaign pagination', 'crowdfunding-wordpress' ) . '">' . wp_kses_post( $links ) . '</nav>' : '';
+		for ( $number = 1; $number <= $max_pages; $number++ ) {
+			$url = add_query_arg( self::QUERY_PAGE, $number, $base_url );
+
+			if ( $number === $page ) {
+				$output .= '<li><span aria-current="page">' . esc_html( (string) $number ) . '</span></li>';
+				continue;
+			}
+
+			$output .= '<li><a href="' . esc_url( $url ) . '">' . esc_html( (string) $number ) . '</a></li>';
+		}
+
+		$output .= '</ul></nav>';
+		return $output;
 	}
 
 	private function format_amount( float $amount, string $currency ): string {
