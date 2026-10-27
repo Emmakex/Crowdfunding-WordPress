@@ -118,6 +118,7 @@ final class Shortcodes {
 			|| ! in_the_loop()
 			|| ! is_main_query()
 			|| has_shortcode( $content, 'crowdfunding_campaign' )
+			|| str_contains( $content, 'class="cfwp-campaign"' )
 		) {
 			return $content;
 		}
@@ -131,7 +132,7 @@ final class Shortcodes {
 		$currency    = (string) get_post_meta( $campaign_id, Campaigns::META_CURRENCY, true );
 		$deadline    = (string) get_post_meta( $campaign_id, Campaigns::META_DEADLINE, true );
 		$facts       = $this->render_facts( $goal_amount, $currency, $deadline, 'cfwp-campaign__facts cfwp-campaign__facts--single' );
-		$progress    = has_shortcode( $content, 'crowdfunding_progress' ) ? '' : $this->render_progress( $campaign_id );
+		$progress    = str_contains( $content, 'class="cfwp-progress' ) ? '' : $this->render_progress( $campaign_id );
 
 		if ( '' === $facts && '' === $progress ) {
 			return $content;
