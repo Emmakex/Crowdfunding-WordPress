@@ -51,3 +51,23 @@ jobs:
             echo 'Reference implementation coupling detected in plugin PHP.'
             exit 1
           fi
+
+  version-contract:
+    name: Version contract
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify plugin, runtime and readme versions match
+        shell: bash
+        run: |
+          set -euo pipefail
+          plugin_version="$(grep -m1 -E '^[[:space:]]*\* Version:' crowdfunding-wordpress.php | sed -E 's/.*Version:[[:space:]]*//')"
+          runtime_version="$(grep -m1 "define( 'CFWP_VERSION'" crowdfunding-wordpress.php | sed -E "s/.*'([0-9]+\.[0-9]+\.[0-9]+)'.*/\1/")"
+          stable_tag="$(grep -m1 '^Stable tag:' readme.txt | cut -d: -f2- | xargs)"
+
+          printf 'Plugin header: %s\nRuntime: %s\nStable tag: %s\n' "$plugin_version" "$runtime_version" "$stable_tag"
+          test "$plugin_version" = "$runtime_version"
+          test "$plugin_version" = "$stable_tag"
