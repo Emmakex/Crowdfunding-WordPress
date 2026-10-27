@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.2.1
+Stable tag: 0.2.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,6 +25,7 @@ The plugin core is intentionally independent from any single crowdfunding platfo
 * Public campaign catalogue and campaign detail shortcodes.
 * Frontend campaign submission shortcode for authorized promoters.
 * Submitted campaigns always enter `pending` review status.
+* Read-only frontend promoter dashboard scoped to the current user's campaigns.
 * Minimal theme-friendly public styles.
 * Dedicated Crowdfunding Promoter role.
 * Campaign-specific capability model isolated from normal WordPress posts.
@@ -42,12 +43,15 @@ The plugin core is intentionally independent from any single crowdfunding platfo
 5. Publish a page with `[crowdfunding_campaigns]` to display the campaign catalogue.
 6. Use `[crowdfunding_campaign id="123"]` to embed one published campaign, or use `[crowdfunding_campaign]` inside a campaign context.
 7. Publish a private or public page with `[crowdfunding_submit_campaign]` to provide the promoter submission form.
+8. Publish a page with `[crowdfunding_promoter_dashboard]` for the signed-in promoter's personal campaign overview.
 
 == Promoters ==
 
 The `cfwp_promoter` role can create and edit its own draft or pending campaigns and upload campaign media. Promoters cannot publish campaigns, edit published campaigns, access private campaigns or manage campaigns owned by other users.
 
 The `[crowdfunding_submit_campaign]` form is available only to signed-in users with the `edit_cfwp_campaigns` capability. Valid submissions are created as pending campaigns owned by the current user and must be reviewed before publication.
+
+The `[crowdfunding_promoter_dashboard]` surface is also permission-gated and always queries campaigns where the author is the current signed-in user. It displays draft, pending and published campaigns with status, funding goal and deadline. It does not provide editing controls in version 0.2.2.
 
 Administrators retain full authority over campaign review, publication and lifecycle management.
 
@@ -68,9 +72,17 @@ Displays one published campaign. Use the optional `id` attribute to select a cam
 
 Displays the frontend campaign submission form. The user must be signed in and have permission to create campaigns. The form collects title, summary, story, funding goal, ISO currency and deadline. Every accepted submission is stored with `pending` status for review.
 
+= [crowdfunding_promoter_dashboard] =
+
+Displays the current signed-in user's draft, pending and published campaigns. Optional attribute:
+
+* `per_page` — campaigns per dashboard page, from 1 to 50. Default: 12.
+
+The dashboard does not accept an author/user parameter and never queries campaigns owned by another account.
+
 == Frequently Asked Questions ==
 
-= Does version 0.2.1 process payments? =
+= Does version 0.2.2 process payments? =
 
 No. The 0.2.x line introduces promoter workflows on top of the campaign domain. WooCommerce contribution flows are planned for the 0.3.x line.
 
@@ -78,9 +90,13 @@ No. The 0.2.x line introduces promoter workflows on top of the campaign domain. 
 
 No. Promoters can prepare and submit their own campaigns, while publication remains under administrator control.
 
+= Can promoters edit campaigns from the frontend dashboard? =
+
+Not yet. Version 0.2.2 intentionally keeps the dashboard read-only. Frontend editing is a separate authority-sensitive cut.
+
 = Does the submission form create promoter accounts? =
 
-No. Version 0.2.1 requires an existing signed-in user with campaign creation permission. Registration and promoter-account onboarding are separate concerns and are not part of this cut.
+No. The current 0.2.x flow requires an existing signed-in user with campaign creation permission. Registration and promoter-account onboarding are separate concerns.
 
 = Why is there no raised amount or progress bar yet? =
 
@@ -91,6 +107,12 @@ Those values will be introduced together with the contribution domain so that pu
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.2.2 =
+* Added `[crowdfunding_promoter_dashboard]` as a read-only frontend promoter dashboard.
+* Dashboard queries are forced to the current signed-in user and closed campaign statuses.
+* Added campaign status, funding goal and deadline overview with pagination.
+* Published campaigns can be opened from the dashboard; pending campaigns clearly show review state.
 
 = 0.2.1 =
 * Added `[crowdfunding_submit_campaign]` frontend submission form.
