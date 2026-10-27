@@ -193,3 +193,34 @@ jobs:
             echo 'WooCommerce adapter must use CRUD objects and avoid legacy order storage coupling.'
             exit 1
           fi
+
+  contribution-checkout-contract:
+    name: Contribution checkout contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify secure exact-amount cart-to-order flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='includes/class-contribution-checkout.php'
+          grep -Fq "add_shortcode( 'crowdfunding_contribute'" "$file"
+          grep -Fq "add_action( 'admin_post_nopriv_' . self::ACTION" "$file"
+          grep -Fq "wp_verify_nonce( \$nonce, self::ACTION . '_' . \$campaign_id )" "$file"
+          grep -Fq "get_woocommerce_currency()" "$file"
+          grep -Fq "cfwp_minimum_contribution_amount" "$file"
+          grep -Fq "wc_load_cart" "$file"
+          grep -Fq "WC()->cart->add_to_cart(" "$file"
+          grep -Fq "woocommerce_before_calculate_totals" "$file"
+          grep -Fq "woocommerce_checkout_create_order_line_item" "$file"
+          grep -Fq "WooCommerce_Adapter::ITEM_META_CAMPAIGN_ID" "$file"
+          grep -Fq "WooCommerce_Adapter::ITEM_META_AMOUNT" "$file"
+          grep -Fq "woocommerce_coupon_is_valid_for_product" "$file"
+          grep -Fq "set_catalog_visibility( 'hidden' )" "$file"
+          grep -Fq "set_sold_individually( true )" "$file"
+          grep -Fq "set_tax_status( 'none' )" "$file"
+          grep -Fq "has_shortcode( \$content, 'crowdfunding_contribute' )" "$file"
+          if grep -Eq 'Contribution_Repository|Contributions::STATUS_' "$file"; then
+            echo 'Checkout must not write contribution ledger authority directly.'
+            exit 1
+          fi
