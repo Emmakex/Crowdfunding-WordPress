@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.2.4
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,11 +11,11 @@ Create and manage crowdfunding campaigns directly in WordPress. Built by Kairose
 
 == Description ==
 
-Crowdfunding WordPress provides a generic campaign domain for WordPress and is being built to support contributions, rewards, promoter dashboards and WooCommerce-based payment flows.
+Crowdfunding WordPress provides a generic crowdfunding domain for WordPress with campaigns, promoters and a contribution ledger designed for WooCommerce-based payment adapters.
 
-The plugin core is intentionally independent from any single crowdfunding platform or vertical implementation.
+The plugin core is intentionally independent from any single crowdfunding platform, payment gateway or vertical implementation.
 
-= Current 0.2.x foundation =
+= Current foundation =
 
 * Generic crowdfunding campaign post type.
 * REST API support.
@@ -28,12 +28,12 @@ The plugin core is intentionally independent from any single crowdfunding platfo
 * Submitted campaigns always enter `pending` review status.
 * Personal frontend promoter dashboard scoped to the current user's campaigns.
 * Secure frontend editing for the current user's own draft or pending campaigns.
-* Minimal theme-friendly public styles.
-* Dedicated Crowdfunding Promoter role.
-* Campaign-specific capability model isolated from normal WordPress posts.
-* Promoters cannot publish, edit published campaigns or manage campaigns owned by other users.
-* Versioned role/capability installation for safe plugin upgrades.
-* Safe activation and deactivation routines.
+* Dedicated Crowdfunding Promoter role and campaign-specific capabilities.
+* Versioned contribution ledger with source/reference idempotency.
+* Contribution states: pending, confirmed, refunded and cancelled.
+* Confirmed campaign totals derived only from contribution records in confirmed state.
+* No duplicated contributor personal data in the contribution ledger.
+* Safe activation and versioned schema upgrades.
 * Translation-ready strings.
 
 == Installation ==
@@ -48,6 +48,16 @@ The plugin core is intentionally independent from any single crowdfunding platfo
 8. Publish a page with `[crowdfunding_submit_campaign]` to provide the promoter submission form.
 9. Publish a page with `[crowdfunding_edit_campaign]` to provide the secure promoter editor.
 10. Publish a page with `[crowdfunding_promoter_dashboard edit_url="/edit-campaign/"]` for the signed-in promoter's personal campaign overview and edit links.
+
+== Contributions ==
+
+Version 0.3.0 introduces the internal contribution ledger but does not yet create payments or checkout sessions.
+
+Each contribution record stores only the crowdfunding facts required by the Core: campaign ID, optional WordPress user ID, source, source reference, exact decimal amount, ISO currency, contribution status and timestamps. Payment/customer details remain with the payment adapter or commerce system instead of being duplicated in the Core ledger.
+
+The pair `source + source_reference` is unique and acts as an idempotency key. Replaying the same source reference with the same campaign, amount and currency returns the existing contribution. Reusing that source reference with different immutable contribution facts is rejected as an idempotency conflict.
+
+Only `confirmed` contribution records are included in authoritative campaign totals. WooCommerce integration will be added as a separate adapter in the 0.3.x line.
 
 == Promoters ==
 
@@ -101,9 +111,17 @@ The dashboard does not accept an author/user parameter and never queries campaig
 
 == Frequently Asked Questions ==
 
-= Does version 0.2.4 process payments? =
+= Does version 0.3.0 process payments? =
 
-No. The 0.2.x line introduces promoter workflows on top of the campaign domain. WooCommerce contribution flows are planned for the 0.3.x line.
+No. Version 0.3.0 creates the authoritative contribution ledger and repository. WooCommerce checkout and payment-state synchronization are separate 0.3.x cuts.
+
+= Why does the contribution ledger use a source and source reference? =
+
+They provide a payment-provider-neutral idempotency key. A WooCommerce adapter can later map a stable order/item reference without making WooCommerce part of the Core contribution model.
+
+= When will a contribution count toward the amount raised? =
+
+Only when its Core contribution status is `confirmed`. Pending, cancelled and refunded records are excluded from the confirmed total.
 
 = Can a promoter register without an administrator creating the account? =
 
@@ -117,19 +135,20 @@ No. Promoters can prepare and submit their own campaigns, while publication rema
 
 Yes, but only their own `draft` or `pending` campaigns. The frontend editor checks ownership and WordPress edit capability on every render and save. Published campaigns remain locked.
 
-= Can the browser change the campaign owner or status during editing? =
-
-No. The frontend update payload contains neither `post_author` nor `post_status`; those authorities remain outside the promoter editor.
-
-= Why is there no raised amount or progress bar yet? =
-
-Those values will be introduced together with the contribution domain so that public funding metrics always come from real contribution records.
-
 = Is this plugin tied to CulturalFunding? =
 
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.3.0 =
+* Added the versioned `cfwp_contributions` ledger schema.
+* Added generic contribution statuses: pending, confirmed, refunded and cancelled.
+* Added a payment-provider-neutral `source + source_reference` idempotency contract.
+* Added repository methods for create, lookup, status updates and confirmed campaign totals.
+* Added idempotency conflict detection when immutable contribution facts differ.
+* Contribution totals include only confirmed records.
+* The Core ledger does not duplicate contributor names, email addresses or payment-card data.
 
 = 0.2.4 =
 * Added `[crowdfunding_promoter_register]` for frontend promoter onboarding.
