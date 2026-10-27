@@ -90,3 +90,23 @@ jobs:
           grep -Fq "'publish_cfwp_campaigns'         => false" includes/class-promoters.php
           grep -Fq "'edit_others_cfwp_campaigns'     => false" includes/class-promoters.php
           grep -Fq "'edit_published_cfwp_campaigns'  => false" includes/class-promoters.php
+
+  submission-contract:
+    name: Frontend submission contract
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify submissions are authenticated, owned and pending
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "add_shortcode( 'crowdfunding_submit_campaign'" includes/class-campaign-submission.php
+          grep -Fq "add_action( 'admin_post_' . self::ACTION" includes/class-campaign-submission.php
+          grep -Fq "wp_verify_nonce( \$nonce, self::ACTION )" includes/class-campaign-submission.php
+          grep -Fq "current_user_can( 'edit_cfwp_campaigns' )" includes/class-campaign-submission.php
+          grep -Fq "'post_status'  => 'pending'" includes/class-campaign-submission.php
+          grep -Fq "'post_author'  => get_current_user_id()" includes/class-campaign-submission.php
+          grep -Fq "wp_validate_redirect( \$requested, home_url( '/' ) )" includes/class-campaign-submission.php
