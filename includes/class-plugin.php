@@ -17,6 +17,7 @@ final class Plugin {
 	private Campaign_Admin $campaign_admin;
 	private Shortcodes $shortcodes;
 	private Campaign_Submission $campaign_submission;
+	private Campaign_Editor $campaign_editor;
 	private Promoter_Dashboard $promoter_dashboard;
 	private bool $running = false;
 
@@ -25,6 +26,7 @@ final class Plugin {
 		$this->campaign_admin      = new Campaign_Admin();
 		$this->shortcodes          = new Shortcodes();
 		$this->campaign_submission = new Campaign_Submission();
+		$this->campaign_editor     = new Campaign_Editor();
 		$this->promoter_dashboard  = new Promoter_Dashboard();
 	}
 
@@ -49,6 +51,7 @@ final class Plugin {
 		add_action( 'init', array( $this, 'load_textdomain' ), 1 );
 		add_action( 'init', array( $this->shortcodes, 'register' ) );
 		add_action( 'init', array( $this->campaign_submission, 'register' ) );
+		add_action( 'init', array( $this->campaign_editor, 'register' ) );
 		add_action( 'init', array( $this->promoter_dashboard, 'register' ) );
 
 		if ( is_admin() ) {
