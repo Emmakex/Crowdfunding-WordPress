@@ -14,10 +14,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Plugin {
 	private static ?Plugin $instance = null;
 	private Campaigns $campaigns;
+	private Campaign_Admin $campaign_admin;
 	private bool $running = false;
 
 	private function __construct() {
-		$this->campaigns = new Campaigns();
+		$this->campaigns      = new Campaigns();
+		$this->campaign_admin = new Campaign_Admin();
 	}
 
 	public static function instance(): Plugin {
@@ -38,6 +40,10 @@ final class Plugin {
 		add_action( 'init', array( $this->campaigns, 'register_post_type' ) );
 		add_action( 'init', array( $this->campaigns, 'register_meta' ) );
 		add_action( 'init', array( $this, 'load_textdomain' ), 1 );
+
+		if ( is_admin() ) {
+			$this->campaign_admin->register();
+		}
 	}
 
 	public function load_textdomain(): void {
