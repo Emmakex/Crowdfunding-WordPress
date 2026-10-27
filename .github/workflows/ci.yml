@@ -71,3 +71,22 @@ jobs:
           printf 'Plugin header: %s\nRuntime: %s\nStable tag: %s\n' "$plugin_version" "$runtime_version" "$stable_tag"
           test "$plugin_version" = "$runtime_version"
           test "$plugin_version" = "$stable_tag"
+
+  promoter-contract:
+    name: Promoter capability contract
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify promoter authority remains constrained
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "public const ROLE = 'cfwp_promoter';" includes/class-promoters.php
+          grep -Fq "'capability_type'     => array( 'cfwp_campaign', 'cfwp_campaigns' )" includes/class-campaigns.php
+          grep -Fq "'edit_cfwp_campaigns'            => true" includes/class-promoters.php
+          grep -Fq "'publish_cfwp_campaigns'         => false" includes/class-promoters.php
+          grep -Fq "'edit_others_cfwp_campaigns'     => false" includes/class-promoters.php
+          grep -Fq "'edit_published_cfwp_campaigns'  => false" includes/class-promoters.php

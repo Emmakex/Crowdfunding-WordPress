@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class Activator {
 	public static function activate(): void {
+		Promoters::install();
+
 		$campaigns = new Campaigns();
 		$campaigns->register_post_type();
 		$campaigns->register_meta();
