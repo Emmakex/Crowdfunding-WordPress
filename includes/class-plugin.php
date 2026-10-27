@@ -48,6 +48,7 @@ final class Plugin {
 		$this->running = true;
 
 		add_action( 'init', array( Promoters::class, 'maybe_install' ), 1 );
+		add_action( 'init', array( Contributions::class, 'maybe_install' ), 2 );
 		add_action( 'init', array( $this->campaigns, 'register_post_type' ) );
 		add_action( 'init', array( $this->campaigns, 'register_meta' ) );
 		add_action( 'init', array( $this, 'load_textdomain' ), 1 );
