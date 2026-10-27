@@ -187,7 +187,7 @@ final class Campaign_Submission {
 		return wp_validate_redirect( $requested, home_url( '/' ) );
 	}
 
-	private function redirect_error( string $redirect_url, string $error ): never {
+	private function redirect_error( string $redirect_url, string $error ): void {
 		$redirect_url = remove_query_arg( array( 'cfwp_notice', 'cfwp_error', 'cfwp_campaign_id' ), $redirect_url );
 		$redirect_url = add_query_arg( 'cfwp_error', sanitize_key( $error ), $redirect_url );
 
