@@ -58,12 +58,21 @@ final class Campaign_Progress {
 			$raised = '0.00000000';
 		}
 
+		$this->enqueue_assets();
+
 		$percentage     = self::percentage( $raised, $goal );
 		$bar_percentage = min( 100.0, $percentage );
 		$modifier       = $compact ? ' cfwp-progress--compact' : '';
 		$raised_label   = self::format_money( $raised, $currency );
 		$goal_label     = self::format_money( $goal, $currency );
 		$percent_label  = number_format_i18n( $percentage, 1 ) . '%';
+		$aria_text      = sprintf(
+			/* translators: 1: raised amount, 2: goal amount, 3: percentage. */
+			__( '%1$s raised of %2$s goal, %3$s funded.', 'crowdfunding-wordpress' ),
+			$raised_label,
+			$goal_label,
+			$percent_label
+		);
 
 		ob_start();
 		?>
@@ -85,6 +94,7 @@ final class Campaign_Progress {
 				aria-valuemin="0"
 				aria-valuemax="100"
 				aria-valuenow="<?php echo esc_attr( number_format( $bar_percentage, 1, '.', '' ) ); ?>"
+				aria-valuetext="<?php echo esc_attr( $aria_text ); ?>"
 			>
 				<span class="cfwp-progress__bar" style="width: <?php echo esc_attr( number_format( $bar_percentage, 2, '.', '' ) ); ?>%"></span>
 			</div>
@@ -128,5 +138,14 @@ final class Campaign_Progress {
 
 	private static function decimal_is_zero( string $value ): bool {
 		return '' === trim( str_replace( '.', '', $value ), '0' );
+	}
+
+	private function enqueue_assets(): void {
+		wp_enqueue_style(
+			'crowdfunding-wordpress-public',
+			CFWP_PLUGIN_URL . 'assets/css/public.css',
+			array(),
+			CFWP_VERSION
+		);
 	}
 }
