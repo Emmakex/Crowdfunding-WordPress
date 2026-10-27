@@ -160,3 +160,29 @@ jobs:
             echo 'Frontend editor must not mutate campaign author or publication status.'
             exit 1
           fi
+
+  registration-contract:
+    name: Promoter registration authority contract
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify registration remains gated and role-forced
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='includes/class-promoter-registration.php'
+          grep -Fq "add_shortcode( 'crowdfunding_promoter_register'" "$file"
+          grep -Fq "add_action( 'admin_post_nopriv_' . self::ACTION" "$file"
+          grep -Fq "wp_verify_nonce( \$nonce, self::ACTION )" "$file"
+          grep -Fq "get_option( 'users_can_register', false )" "$file"
+          grep -Fq "'cfwp_promoter_registration_enabled'" "$file"
+          grep -Fq "'role'       => Promoters::ROLE" "$file"
+          grep -Fq "wp_set_auth_cookie( \$user_id" "$file"
+          grep -Fq "wp_validate_redirect( \$requested, home_url( '/' ) )" "$file"
+          if grep -Eq "\$_(GET|POST)\[[^]]*role" "$file"; then
+            echo 'Promoter registration must never accept role authority from request input.'
+            exit 1
+          fi
