@@ -14,7 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Contribution_Repository {
 	/**
 	 * Create one contribution record, returning the existing record when the
-	 * source/reference idempotency key has already been recorded.
+	 * source/reference idempotency key has already been recorded with the same
+	 * immutable contribution facts.
 	 *
 	 * @param array<string,mixed> $data Contribution data.
 	 * @return int|\WP_Error
@@ -57,7 +58,7 @@ final class Contribution_Repository {
 
 		$existing = $this->find_by_source( $source, $source_reference );
 		if ( is_array( $existing ) ) {
-			return (int) $existing['id'];
+			return $this->resolve_idempotent_record( $existing, $campaign_id, $amount, $currency );
 		}
 
 		$now      = current_time( 'mysql', true );
@@ -80,7 +81,7 @@ final class Contribution_Repository {
 		if ( false === $inserted ) {
 			$existing = $this->find_by_source( $source, $source_reference );
 			if ( is_array( $existing ) ) {
-				return (int) $existing['id'];
+				return $this->resolve_idempotent_record( $existing, $campaign_id, $amount, $currency );
 			}
 
 			return new \WP_Error( 'cfwp_contribution_insert_failed', __( 'The contribution could not be recorded.', 'crowdfunding-wordpress' ) );
@@ -90,6 +91,28 @@ final class Contribution_Repository {
 		do_action( 'cfwp_contribution_created', $contribution_id, $data );
 
 		return $contribution_id;
+	}
+
+	/**
+	 * @return array<string,mixed>|null
+	 */
+	public function find( int $contribution_id ): ?array {
+		global $wpdb;
+
+		$contribution_id = absint( $contribution_id );
+		if ( $contribution_id <= 0 ) {
+			return null;
+		}
+
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT * FROM ' . Contributions::table_name() . ' WHERE id = %d LIMIT 1',
+				$contribution_id
+			),
+			ARRAY_A
+		);
+
+		return is_array( $row ) ? $row : null;
 	}
 
 	/**
@@ -130,6 +153,10 @@ final class Contribution_Repository {
 			return new \WP_Error( 'cfwp_invalid_status_update', __( 'The contribution status update is invalid.', 'crowdfunding-wordpress' ) );
 		}
 
+		if ( null === $this->find( $contribution_id ) ) {
+			return new \WP_Error( 'cfwp_contribution_not_found', __( 'The contribution could not be found.', 'crowdfunding-wordpress' ) );
+		}
+
 		$updated = $wpdb->update(
 			Contributions::table_name(),
 			array(
@@ -166,6 +193,25 @@ final class Contribution_Repository {
 		);
 
 		return null === $total ? '0.00000000' : (string) $total;
+	}
+
+	/**
+	 * @param array<string,mixed> $existing Existing stored record.
+	 * @return int|\WP_Error
+	 */
+	private function resolve_idempotent_record( array $existing, int $campaign_id, string $amount, string $currency ): int|\WP_Error {
+		$existing_campaign = isset( $existing['campaign_id'] ) ? (int) $existing['campaign_id'] : 0;
+		$existing_amount   = isset( $existing['amount'] ) ? (string) $existing['amount'] : '';
+		$existing_currency = isset( $existing['currency'] ) ? (string) $existing['currency'] : '';
+
+		if ( $existing_campaign !== $campaign_id || $existing_amount !== $amount || $existing_currency !== $currency ) {
+			return new \WP_Error(
+				'cfwp_idempotency_conflict',
+				__( 'The contribution source reference is already associated with different contribution data.', 'crowdfunding-wordpress' )
+			);
+		}
+
+		return isset( $existing['id'] ) ? (int) $existing['id'] : 0;
 	}
 
 	private static function normalize_amount( mixed $value ): string {
