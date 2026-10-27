@@ -14,6 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Campaigns {
 	public const POST_TYPE = 'cfwp_campaign';
 	public const META_GOAL_AMOUNT = '_cfwp_goal_amount';
+	public const META_CURRENCY = '_cfwp_currency';
 	public const META_DEADLINE = '_cfwp_deadline';
 
 	public function register_post_type(): void {
@@ -35,17 +36,17 @@ final class Campaigns {
 		register_post_type(
 			self::POST_TYPE,
 			array(
-				'labels'             => $labels,
-				'public'             => true,
-				'show_in_rest'       => true,
-				'has_archive'        => 'crowdfunding',
-				'rewrite'            => array( 'slug' => 'crowdfunding' ),
-				'menu_icon'          => 'dashicons-megaphone',
-				'supports'           => array( 'title', 'editor', 'excerpt', 'thumbnail', 'author' ),
-				'map_meta_cap'       => true,
-				'delete_with_user'   => false,
-				'show_in_nav_menus'  => true,
-				'exclude_from_search'=> false,
+				'labels'              => $labels,
+				'public'              => true,
+				'show_in_rest'        => true,
+				'has_archive'         => 'crowdfunding',
+				'rewrite'             => array( 'slug' => 'crowdfunding' ),
+				'menu_icon'           => 'dashicons-megaphone',
+				'supports'            => array( 'title', 'editor', 'excerpt', 'thumbnail', 'author' ),
+				'map_meta_cap'        => true,
+				'delete_with_user'    => false,
+				'show_in_nav_menus'   => true,
+				'exclude_from_search' => false,
 			),
 		);
 	}
@@ -60,6 +61,19 @@ final class Campaigns {
 				'show_in_rest'      => true,
 				'default'           => 0,
 				'sanitize_callback' => array( self::class, 'sanitize_goal_amount' ),
+				'auth_callback'     => array( self::class, 'can_edit_campaign_meta' ),
+			)
+		);
+
+		register_post_meta(
+			self::POST_TYPE,
+			self::META_CURRENCY,
+			array(
+				'type'              => 'string',
+				'single'            => true,
+				'show_in_rest'      => true,
+				'default'           => '',
+				'sanitize_callback' => array( self::class, 'sanitize_currency' ),
 				'auth_callback'     => array( self::class, 'can_edit_campaign_meta' ),
 			)
 		);
@@ -83,6 +97,11 @@ final class Campaigns {
 		return max( 0, $amount );
 	}
 
+	public static function sanitize_currency( mixed $value ): string {
+		$currency = strtoupper( sanitize_text_field( (string) $value ) );
+		return preg_match( '/^[A-Z]{3}$/', $currency ) ? $currency : '';
+	}
+
 	public static function sanitize_deadline( mixed $value ): string {
 		$value = sanitize_text_field( (string) $value );
 
@@ -94,7 +113,7 @@ final class Campaigns {
 		return $date && $date->format( 'Y-m-d' ) === $value ? $value : '';
 	}
 
-	public static function can_edit_campaign_meta( bool $allowed, string $meta_key, int $post_id ): bool {
+	public static function can_edit_campaign_meta( mixed $allowed, string $meta_key, int $post_id ): bool {
 		unset( $allowed, $meta_key );
 		return current_user_can( 'edit_post', $post_id );
 	}
