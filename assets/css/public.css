@@ -110,3 +110,65 @@
 	border: 1px solid currentColor;
 	border-radius: 0.35rem;
 }
+
+.cfwp-dashboard {
+	display: grid;
+	gap: 1.25rem;
+}
+
+.cfwp-dashboard__header h2,
+.cfwp-dashboard-card h3 {
+	margin-top: 0;
+}
+
+.cfwp-dashboard__campaigns {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+	gap: 1rem;
+}
+
+.cfwp-dashboard-card {
+	display: grid;
+	gap: 0.75rem;
+	padding: 1rem;
+	border: 1px solid currentColor;
+	border-radius: 0.6rem;
+}
+
+.cfwp-dashboard-card__status,
+.cfwp-dashboard-card__facts p,
+.cfwp-dashboard-card__actions,
+.cfwp-dashboard-card__message {
+	margin: 0;
+}
+
+.cfwp-dashboard-card__facts {
+	display: grid;
+	gap: 0.4rem;
+}
+
+.cfwp-dashboard-card__status,
+.cfwp-dashboard-card__facts p {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+
+.cfwp-dashboard__pagination ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+
+.cfwp-dashboard__pagination a,
+.cfwp-dashboard__pagination span {
+	display: inline-block;
+	min-width: 2.25rem;
+	padding: 0.45rem 0.65rem;
+	border: 1px solid currentColor;
+	border-radius: 0.35rem;
+	text-align: center;
+}
