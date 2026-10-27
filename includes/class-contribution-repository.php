@@ -22,13 +22,13 @@ final class Contribution_Repository {
 	public function create( array $data ): int|\WP_Error {
 		global $wpdb;
 
-		$campaign_id     = isset( $data['campaign_id'] ) ? absint( $data['campaign_id'] ) : 0;
-		$user_id         = isset( $data['user_id'] ) ? absint( $data['user_id'] ) : 0;
-		$source          = isset( $data['source'] ) ? substr( sanitize_key( (string) $data['source'] ), 0, 32 ) : '';
+		$campaign_id      = isset( $data['campaign_id'] ) ? absint( $data['campaign_id'] ) : 0;
+		$user_id          = isset( $data['user_id'] ) ? absint( $data['user_id'] ) : 0;
+		$source           = isset( $data['source'] ) ? substr( sanitize_key( (string) $data['source'] ), 0, 32 ) : '';
 		$source_reference = isset( $data['source_reference'] ) ? substr( sanitize_text_field( (string) $data['source_reference'] ), 0, 191 ) : '';
-		$amount          = self::normalize_amount( $data['amount'] ?? '' );
-		$currency        = Campaigns::sanitize_currency( $data['currency'] ?? '' );
-		$status          = isset( $data['status'] ) ? sanitize_key( (string) $data['status'] ) : Contributions::STATUS_PENDING;
+		$amount           = self::normalize_amount( $data['amount'] ?? '' );
+		$currency         = Campaigns::sanitize_currency( $data['currency'] ?? '' );
+		$status           = isset( $data['status'] ) ? sanitize_key( (string) $data['status'] ) : Contributions::STATUS_PENDING;
 
 		$campaign = $campaign_id > 0 ? get_post( $campaign_id ) : null;
 		if ( ! $campaign instanceof \WP_Post || Campaigns::POST_TYPE !== $campaign->post_type ) {
@@ -64,15 +64,15 @@ final class Contribution_Repository {
 		$inserted = $wpdb->insert(
 			Contributions::table_name(),
 			array(
-				'campaign_id'     => $campaign_id,
-				'user_id'         => $user_id,
-				'source'          => $source,
-				'source_reference'=> $source_reference,
-				'amount'          => $amount,
-				'currency'        => $currency,
-				'status'          => $status,
-				'created_at'      => $now,
-				'updated_at'      => $now,
+				'campaign_id'      => $campaign_id,
+				'user_id'          => $user_id,
+				'source'           => $source,
+				'source_reference' => $source_reference,
+				'amount'           => $amount,
+				'currency'         => $currency,
+				'status'           => $status,
+				'created_at'       => $now,
+				'updated_at'       => $now,
 			),
 			array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
@@ -118,9 +118,9 @@ final class Contribution_Repository {
 	}
 
 	/**
-	 * @return true|\WP_Error
+	 * @return bool|\WP_Error
 	 */
-	public function update_status( int $contribution_id, string $status ): true|\WP_Error {
+	public function update_status( int $contribution_id, string $status ): bool|\WP_Error {
 		global $wpdb;
 
 		$contribution_id = absint( $contribution_id );
