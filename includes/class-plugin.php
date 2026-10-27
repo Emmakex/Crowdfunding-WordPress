@@ -20,6 +20,7 @@ final class Plugin {
 	private Campaign_Editor $campaign_editor;
 	private Promoter_Dashboard $promoter_dashboard;
 	private Promoter_Registration $promoter_registration;
+	private WooCommerce_Adapter $woocommerce_adapter;
 	private bool $running = false;
 
 	private function __construct() {
@@ -30,6 +31,7 @@ final class Plugin {
 		$this->campaign_editor       = new Campaign_Editor();
 		$this->promoter_dashboard    = new Promoter_Dashboard();
 		$this->promoter_registration = new Promoter_Registration();
+		$this->woocommerce_adapter   = new WooCommerce_Adapter();
 	}
 
 	public static function instance(): Plugin {
@@ -46,6 +48,8 @@ final class Plugin {
 		}
 
 		$this->running = true;
+
+		$this->woocommerce_adapter->register();
 
 		add_action( 'init', array( Promoters::class, 'maybe_install' ), 1 );
 		add_action( 'init', array( Contributions::class, 'maybe_install' ), 2 );
