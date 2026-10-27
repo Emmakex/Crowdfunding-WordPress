@@ -20,6 +20,7 @@ final class Plugin {
 	private Campaign_Editor $campaign_editor;
 	private Promoter_Dashboard $promoter_dashboard;
 	private Promoter_Registration $promoter_registration;
+	private Campaign_Progress $campaign_progress;
 	private WooCommerce_Adapter $woocommerce_adapter;
 	private Contribution_Checkout $contribution_checkout;
 	private bool $running = false;
@@ -32,6 +33,7 @@ final class Plugin {
 		$this->campaign_editor       = new Campaign_Editor();
 		$this->promoter_dashboard    = new Promoter_Dashboard();
 		$this->promoter_registration = new Promoter_Registration();
+		$this->campaign_progress     = new Campaign_Progress();
 		$this->woocommerce_adapter   = new WooCommerce_Adapter();
 		$this->contribution_checkout = new Contribution_Checkout();
 	}
@@ -59,6 +61,7 @@ final class Plugin {
 		add_action( 'init', array( $this->campaigns, 'register_post_type' ) );
 		add_action( 'init', array( $this->campaigns, 'register_meta' ) );
 		add_action( 'init', array( $this, 'load_textdomain' ), 1 );
+		add_action( 'init', array( $this->campaign_progress, 'register' ) );
 		add_action( 'init', array( $this->shortcodes, 'register' ) );
 		add_action( 'init', array( $this->campaign_submission, 'register' ) );
 		add_action( 'init', array( $this->campaign_editor, 'register' ) );

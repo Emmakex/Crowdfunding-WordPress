@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → contribution amount → WooCommerce cart/checkout → payment gateway → WooCommerce order → contribution adapter → Core ledger`
+`Campaign → contribution amount → WooCommerce cart/checkout → payment gateway → WooCommerce order → contribution adapter → Core ledger → confirmed public progress`
 
-The Core owns campaign and contribution meaning. WooCommerce owns checkout, orders and payment gateway interoperability.
+The Core owns campaign and contribution meaning. WooCommerce owns checkout, orders and payment gateway interoperability. Public funding progress reads the Core ledger rather than WooCommerce order totals.
 
-As of **0.3.2**, the repository includes:
+As of **0.3.3**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -29,7 +29,9 @@ As of **0.3.2**, the repository includes:
 - classic checkout and Store API/Checkout Blocks synchronization;
 - frontend contribution form and exact-amount cart line creation;
 - hidden technical WooCommerce product isolated from ordinary catalogue products;
-- strict campaign/store currency matching and minimum contribution validation.
+- strict campaign/store currency matching and minimum contribution validation;
+- authoritative confirmed raised amount and campaign progress on catalogue/detail surfaces;
+- standalone `[crowdfunding_progress]` output with accessible progressbar semantics.
 
 ## Architecture principles
 
@@ -39,6 +41,7 @@ As of **0.3.2**, the repository includes:
 - Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
 - WooCommerce orders are accessed through CRUD APIs and declared HPOS-compatible boundaries.
 - Contribution checkout never writes the Core ledger directly; order lifecycle synchronization is the authority bridge.
+- Public raised/progress values are derived only from confirmed Core contribution records.
 - Frontend-first product experience for campaign owners and supporters.
 - Escaping, sanitization, capability checks, nonces and idempotency are mandatory.
 - Public APIs and persistent identifiers are compatibility contracts once released.
@@ -48,7 +51,7 @@ As of **0.3.2**, the repository includes:
 
 - **0.1.x** Foundation and campaign domain — complete.
 - **0.2.x** Promoters and frontend campaign workflow — complete.
-- **0.3.x** WooCommerce contribution flow — in progress.
+- **0.3.x** WooCommerce contribution flow and authoritative funding progress — in progress.
 - **0.4.x** Rewards.
 - **0.5.x** Contribution dashboards and campaign statistics.
 - **0.6.x** Moderation and campaign workflow expansion.

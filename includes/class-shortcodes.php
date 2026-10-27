@@ -80,6 +80,7 @@ final class Shortcodes {
 		$goal_amount = (float) get_post_meta( $campaign->ID, Campaigns::META_GOAL_AMOUNT, true );
 		$currency    = (string) get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true );
 		$deadline    = (string) get_post_meta( $campaign->ID, Campaigns::META_DEADLINE, true );
+		$progress    = $this->render_progress( $campaign->ID );
 		$content     = (string) apply_filters(
 			'cfwp_campaign_content',
 			wpautop( $campaign->post_content ),
@@ -100,6 +101,7 @@ final class Shortcodes {
 			<?php endif; ?>
 
 			<?php echo $this->render_facts( $goal_amount, $currency, $deadline, 'cfwp-campaign__facts' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+			<?php echo $progress; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
 			<div class="cfwp-campaign__content">
 				<?php echo wp_kses_post( $content ); ?>
@@ -116,6 +118,7 @@ final class Shortcodes {
 			|| ! in_the_loop()
 			|| ! is_main_query()
 			|| has_shortcode( $content, 'crowdfunding_campaign' )
+			|| str_contains( $content, 'class="cfwp-campaign"' )
 		) {
 			return $content;
 		}
@@ -129,19 +132,21 @@ final class Shortcodes {
 		$currency    = (string) get_post_meta( $campaign_id, Campaigns::META_CURRENCY, true );
 		$deadline    = (string) get_post_meta( $campaign_id, Campaigns::META_DEADLINE, true );
 		$facts       = $this->render_facts( $goal_amount, $currency, $deadline, 'cfwp-campaign__facts cfwp-campaign__facts--single' );
+		$progress    = str_contains( $content, 'class="cfwp-progress' ) ? '' : $this->render_progress( $campaign_id );
 
-		if ( '' === $facts ) {
+		if ( '' === $facts && '' === $progress ) {
 			return $content;
 		}
 
 		$this->enqueue_assets();
-		return $facts . $content;
+		return $facts . $progress . $content;
 	}
 
 	private function render_card( \WP_Post $campaign ): string {
 		$goal_amount = (float) get_post_meta( $campaign->ID, Campaigns::META_GOAL_AMOUNT, true );
 		$currency    = (string) get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true );
 		$deadline    = (string) get_post_meta( $campaign->ID, Campaigns::META_DEADLINE, true );
+		$progress    = $this->render_progress( $campaign->ID, true );
 		$excerpt     = has_excerpt( $campaign )
 			? get_the_excerpt( $campaign )
 			: wp_trim_words( wp_strip_all_tags( $campaign->post_content ), 28 );
@@ -165,6 +170,7 @@ final class Shortcodes {
 				<?php endif; ?>
 
 				<?php echo $this->render_facts( $goal_amount, $currency, $deadline, 'cfwp-campaign-card__facts' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				<?php echo $progress; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
 				<a class="cfwp-campaign-card__link" href="<?php echo esc_url( get_permalink( $campaign ) ); ?>">
 					<?php esc_html_e( 'View campaign', 'crowdfunding-wordpress' ); ?>
@@ -173,6 +179,16 @@ final class Shortcodes {
 		</article>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	private function render_progress( int $campaign_id, bool $compact = false ): string {
+		$shortcode = sprintf(
+			'[crowdfunding_progress id="%d" compact="%s"]',
+			absint( $campaign_id ),
+			$compact ? 'yes' : 'no'
+		);
+
+		return do_shortcode( $shortcode );
 	}
 
 	private function render_facts( float $goal_amount, string $currency, string $deadline, string $class_name ): string {
