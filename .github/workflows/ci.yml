@@ -224,3 +224,32 @@ jobs:
             echo 'Checkout must not write contribution ledger authority directly.'
             exit 1
           fi
+
+  campaign-progress-contract:
+    name: Authoritative campaign progress contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public progress comes only from confirmed ledger totals
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='includes/class-campaign-progress.php'
+          views='includes/class-shortcodes.php'
+          repo='includes/class-contribution-repository.php'
+          grep -Fq "add_shortcode( 'crowdfunding_progress'" "$file"
+          grep -Fq "confirmed_total_for_campaign( \$campaign_id )" "$file"
+          grep -Fq "Campaigns::META_GOAL_AMOUNT" "$file"
+          grep -Fq "Campaigns::META_CURRENCY" "$file"
+          grep -Fq "min( 100.0, \$percentage )" "$file"
+          grep -Fq 'role="progressbar"' "$file"
+          grep -Fq 'aria-valuetext=' "$file"
+          grep -Fq "render_progress( \$campaign->ID, true )" "$views"
+          grep -Fq "render_progress( \$campaign->ID )" "$views"
+          grep -Fq "str_contains( \$content, 'class=\"cfwp-progress' )" "$views"
+          grep -Fq "WHERE campaign_id = %d AND status = %s" "$repo"
+          grep -Fq "Contributions::STATUS_CONFIRMED" "$repo"
+          if grep -Ei '\$wpdb|woocommerce|\bwc_|STATUS_PENDING|STATUS_CANCELLED|STATUS_REFUNDED' "$file"; then
+            echo 'Public progress must consume the generic confirmed-total repository authority only.'
+            exit 1
+          fi
