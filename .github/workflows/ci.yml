@@ -20,46 +20,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           coverage: none
-
       - name: Lint PHP files
         shell: bash
         run: |
           set -euo pipefail
-          while IFS= read -r -d '' file; do
-            php -l "$file"
-          done < <(find . -type f -name '*.php' -not -path './vendor/*' -print0)
+          while IFS= read -r -d '' file; do php -l "$file"; done < <(find . -type f -name '*.php' -not -path './vendor/*' -print0)
 
   architecture-guard:
     name: Generic core guard
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Reject reference-implementation coupling in PHP
         shell: bash
         run: |
           set -euo pipefail
-          if grep -RInE --include='*.php' 'CulturalFunding|Financial Rocks|\bfr_' .; then
-            echo 'Reference implementation coupling detected in plugin PHP.'
-            exit 1
-          fi
+          if grep -RInE --include='*.php' 'CulturalFunding|Financial Rocks|\bfr_' .; then exit 1; fi
 
   version-contract:
     name: Version contract
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Verify plugin, runtime and readme versions match
         shell: bash
         run: |
@@ -67,19 +54,14 @@ jobs:
           plugin_version="$(grep -m1 -E '^[[:space:]]*\* Version:' crowdfunding-wordpress.php | sed -E 's/.*Version:[[:space:]]*//')"
           runtime_version="$(grep -m1 "define( 'CFWP_VERSION'" crowdfunding-wordpress.php | sed -E "s/.*'([0-9]+\.[0-9]+\.[0-9]+)'.*/\1/")"
           stable_tag="$(grep -m1 '^Stable tag:' readme.txt | cut -d: -f2- | xargs)"
-
-          printf 'Plugin header: %s\nRuntime: %s\nStable tag: %s\n' "$plugin_version" "$runtime_version" "$stable_tag"
           test "$plugin_version" = "$runtime_version"
           test "$plugin_version" = "$stable_tag"
 
   promoter-contract:
     name: Promoter capability contract
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Verify promoter authority remains constrained
         shell: bash
         run: |
@@ -94,11 +76,8 @@ jobs:
   submission-contract:
     name: Frontend submission contract
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Verify submissions are authenticated, owned and pending
         shell: bash
         run: |
@@ -114,11 +93,8 @@ jobs:
   dashboard-contract:
     name: Promoter dashboard contract
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Verify dashboard remains current-user scoped
         shell: bash
         run: |
@@ -127,23 +103,14 @@ jobs:
           grep -Fq "current_user_can( 'edit_cfwp_campaigns' )" includes/class-promoter-dashboard.php
           grep -Fq "'author'         => get_current_user_id()" includes/class-promoter-dashboard.php
           grep -Fq "'post_status'    => array( 'draft', 'pending', 'publish' )" includes/class-promoter-dashboard.php
-          if grep -Eq "shortcode_atts\([^)]*(author|user_id)" includes/class-promoter-dashboard.php; then
-            echo 'Dashboard must not accept author or user_id authority from shortcode input.'
-            exit 1
-          fi
-          if grep -Eq "\$_(GET|POST)\[[^]]*(author|user_id)" includes/class-promoter-dashboard.php; then
-            echo 'Dashboard must not accept author or user_id authority from request input.'
-            exit 1
-          fi
+          if grep -Eq "shortcode_atts\([^)]*(author|user_id)" includes/class-promoter-dashboard.php; then exit 1; fi
+          if grep -Eq "\$_(GET|POST)\[[^]]*(author|user_id)" includes/class-promoter-dashboard.php; then exit 1; fi
 
   editor-contract:
     name: Frontend editor authority contract
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Verify editor remains owned, unpublished and status-neutral
         shell: bash
         run: |
@@ -156,19 +123,13 @@ jobs:
           grep -Fq "wp_verify_nonce( \$nonce, self::ACTION . '_' . \$campaign_id )" includes/class-campaign-editor.php
           grep -Fq "wp_update_post(" includes/class-campaign-editor.php
           grep -Fq "wp_validate_redirect( \$requested, home_url( '/' ) )" includes/class-campaign-editor.php
-          if grep -Eq "'post_(author|status)'[[:space:]]*=>" includes/class-campaign-editor.php; then
-            echo 'Frontend editor must not mutate campaign author or publication status.'
-            exit 1
-          fi
+          if grep -Eq "'post_(author|status)'[[:space:]]*=>" includes/class-campaign-editor.php; then exit 1; fi
 
   registration-contract:
     name: Promoter registration authority contract
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Verify registration remains gated and role-forced
         shell: bash
         run: |
@@ -182,19 +143,13 @@ jobs:
           grep -Fq "'role'       => Promoters::ROLE" "$file"
           grep -Fq "wp_set_auth_cookie( \$user_id" "$file"
           grep -Fq "wp_validate_redirect( \$requested, home_url( '/' ) )" "$file"
-          if grep -Eq "\$_(GET|POST)\[[^]]*role" "$file"; then
-            echo 'Promoter registration must never accept role authority from request input.'
-            exit 1
-          fi
+          if grep -Eq "\$_(GET|POST)\[[^]]*role" "$file"; then exit 1; fi
 
   contributions-contract:
     name: Contributions ledger contract
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Verify contribution schema, states and idempotency remain generic
         shell: bash
         run: |
@@ -211,7 +166,30 @@ jobs:
           grep -Fq "cfwp_idempotency_conflict" "$repo"
           grep -Fq "Contributions::STATUS_CONFIRMED" "$repo"
           grep -Fq "null === \$this->find( \$contribution_id )" "$repo"
-          if grep -Ei 'woocommerce|\bwc_' "$domain" "$repo"; then
-            echo 'Contribution Core must remain payment-provider neutral.'
+          if grep -Ei 'woocommerce|\bwc_' "$domain" "$repo"; then exit 1; fi
+
+  woocommerce-adapter-contract:
+    name: WooCommerce adapter contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify HPOS-safe explicit-marker synchronization
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='includes/class-woocommerce-adapter.php'
+          grep -Fq "declare_compatibility(" "$file"
+          grep -Fq "'custom_order_tables'" "$file"
+          grep -Fq "woocommerce_checkout_order_created" "$file"
+          grep -Fq "woocommerce_store_api_checkout_order_created" "$file"
+          grep -Fq "woocommerce_order_status_changed" "$file"
+          grep -Fq "public const ITEM_META_CAMPAIGN_ID = '_cfwp_campaign_id';" "$file"
+          grep -Fq "public const ITEM_META_AMOUNT = '_cfwp_contribution_amount';" "$file"
+          grep -Fq "'source'           => self::SOURCE" "$file"
+          grep -Fq "wc_get_is_paid_statuses" "$file"
+          grep -Fq "Contributions::STATUS_REFUNDED" "$file"
+          grep -Fq "Contributions::STATUS_CANCELLED" "$file"
+          if grep -Ei 'get_post_meta\(|wp_posts|wp_postmeta|shop_order' "$file"; then
+            echo 'WooCommerce adapter must use CRUD objects and avoid legacy order storage coupling.'
             exit 1
           fi
