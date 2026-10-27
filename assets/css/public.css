@@ -1,0 +1,58 @@
+.cfwp-campaign-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+	gap: 1.5rem;
+}
+
+.cfwp-campaign-card,
+.cfwp-campaign {
+	border: 1px solid currentColor;
+	border-radius: 0.75rem;
+	overflow: hidden;
+}
+
+.cfwp-campaign-card__image,
+.cfwp-campaign__image {
+	display: block;
+}
+
+.cfwp-campaign-card__image img,
+.cfwp-campaign__image img {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.cfwp-campaign-card__body,
+.cfwp-campaign__header,
+.cfwp-campaign__facts,
+.cfwp-campaign__content {
+	padding: 1rem;
+}
+
+.cfwp-campaign-card__title,
+.cfwp-campaign__title {
+	margin-top: 0;
+}
+
+.cfwp-campaign-card__facts,
+.cfwp-campaign__facts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem 1.25rem;
+}
+
+.cfwp-campaign-card__facts p,
+.cfwp-campaign__facts p {
+	margin: 0;
+}
+
+.cfwp-campaign-card__link {
+	display: inline-block;
+	margin-top: 1rem;
+	font-weight: 600;
+}
+
+.cfwp-empty {
+	margin: 1rem 0;
+}
