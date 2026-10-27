@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.2.0
+Stable tag: 0.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,6 +23,8 @@ The plugin core is intentionally independent from any single crowdfunding platfo
 * Campaign deadline metadata.
 * Secure campaign details editor in WordPress admin.
 * Public campaign catalogue and campaign detail shortcodes.
+* Frontend campaign submission shortcode for authorized promoters.
+* Submitted campaigns always enter `pending` review status.
 * Minimal theme-friendly public styles.
 * Dedicated Crowdfunding Promoter role.
 * Campaign-specific capability model isolated from normal WordPress posts.
@@ -39,10 +41,13 @@ The plugin core is intentionally independent from any single crowdfunding platfo
 4. Create or edit a campaign and fill in its funding goal, currency and deadline.
 5. Publish a page with `[crowdfunding_campaigns]` to display the campaign catalogue.
 6. Use `[crowdfunding_campaign id="123"]` to embed one published campaign, or use `[crowdfunding_campaign]` inside a campaign context.
+7. Publish a private or public page with `[crowdfunding_submit_campaign]` to provide the promoter submission form.
 
 == Promoters ==
 
-Version 0.2.0 introduces the `cfwp_promoter` role. Promoters can create and edit their own draft or pending campaigns and upload campaign media. They cannot publish campaigns, edit published campaigns, access private campaigns or manage campaigns owned by other users.
+The `cfwp_promoter` role can create and edit its own draft or pending campaigns and upload campaign media. Promoters cannot publish campaigns, edit published campaigns, access private campaigns or manage campaigns owned by other users.
+
+The `[crowdfunding_submit_campaign]` form is available only to signed-in users with the `edit_cfwp_campaigns` capability. Valid submissions are created as pending campaigns owned by the current user and must be reviewed before publication.
 
 Administrators retain full authority over campaign review, publication and lifecycle management.
 
@@ -59,15 +64,23 @@ Displays published campaigns. Optional attributes:
 
 Displays one published campaign. Use the optional `id` attribute to select a campaign.
 
+= [crowdfunding_submit_campaign] =
+
+Displays the frontend campaign submission form. The user must be signed in and have permission to create campaigns. The form collects title, summary, story, funding goal, ISO currency and deadline. Every accepted submission is stored with `pending` status for review.
+
 == Frequently Asked Questions ==
 
-= Does version 0.2.0 process payments? =
+= Does version 0.2.1 process payments? =
 
 No. The 0.2.x line introduces promoter workflows on top of the campaign domain. WooCommerce contribution flows are planned for the 0.3.x line.
 
 = Can a promoter publish a campaign directly? =
 
 No. Promoters can prepare and submit their own campaigns, while publication remains under administrator control.
+
+= Does the submission form create promoter accounts? =
+
+No. Version 0.2.1 requires an existing signed-in user with campaign creation permission. Registration and promoter-account onboarding are separate concerns and are not part of this cut.
 
 = Why is there no raised amount or progress bar yet? =
 
@@ -78,6 +91,13 @@ Those values will be introduced together with the contribution domain so that pu
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.2.1 =
+* Added `[crowdfunding_submit_campaign]` frontend submission form.
+* Added nonce and promoter capability validation through the WordPress `admin-post.php` flow.
+* Added server-side validation for campaign title, story, goal, currency and deadline.
+* Frontend submissions are always created as pending campaigns owned by the current user.
+* Added redirect-safe submission result messages and theme-friendly form styles.
 
 = 0.2.0 =
 * Added the dedicated Crowdfunding Promoter role.
