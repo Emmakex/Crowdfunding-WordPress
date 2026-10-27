@@ -21,6 +21,7 @@ final class Plugin {
 	private Promoter_Dashboard $promoter_dashboard;
 	private Promoter_Registration $promoter_registration;
 	private WooCommerce_Adapter $woocommerce_adapter;
+	private Contribution_Checkout $contribution_checkout;
 	private bool $running = false;
 
 	private function __construct() {
@@ -32,6 +33,7 @@ final class Plugin {
 		$this->promoter_dashboard    = new Promoter_Dashboard();
 		$this->promoter_registration = new Promoter_Registration();
 		$this->woocommerce_adapter   = new WooCommerce_Adapter();
+		$this->contribution_checkout = new Contribution_Checkout();
 	}
 
 	public static function instance(): Plugin {
@@ -50,6 +52,7 @@ final class Plugin {
 		$this->running = true;
 
 		$this->woocommerce_adapter->register();
+		$this->contribution_checkout->register();
 
 		add_action( 'init', array( Promoters::class, 'maybe_install' ), 1 );
 		add_action( 'init', array( Contributions::class, 'maybe_install' ), 2 );
