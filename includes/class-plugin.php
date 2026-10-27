@@ -17,6 +17,7 @@ final class Plugin {
 	private Campaign_Admin $campaign_admin;
 	private Shortcodes $shortcodes;
 	private Campaign_Submission $campaign_submission;
+	private Promoter_Dashboard $promoter_dashboard;
 	private bool $running = false;
 
 	private function __construct() {
@@ -24,6 +25,7 @@ final class Plugin {
 		$this->campaign_admin      = new Campaign_Admin();
 		$this->shortcodes          = new Shortcodes();
 		$this->campaign_submission = new Campaign_Submission();
+		$this->promoter_dashboard  = new Promoter_Dashboard();
 	}
 
 	public static function instance(): Plugin {
@@ -47,6 +49,7 @@ final class Plugin {
 		add_action( 'init', array( $this, 'load_textdomain' ), 1 );
 		add_action( 'init', array( $this->shortcodes, 'register' ) );
 		add_action( 'init', array( $this->campaign_submission, 'register' ) );
+		add_action( 'init', array( $this->promoter_dashboard, 'register' ) );
 
 		if ( is_admin() ) {
 			$this->campaign_admin->register();
