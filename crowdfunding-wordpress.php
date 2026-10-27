@@ -3,7 +3,7 @@
  * Plugin Name:       Crowdfunding WordPress
  * Plugin URI:        https://kairoseth.com/crowdfunding-wordpress/
  * Description:       Create and manage crowdfunding campaigns in WordPress, with a clean domain layer ready for WooCommerce contributions and rewards.
- * Version:           0.2.4
+ * Version:           0.3.0
  * Requires at least: 6.4
  * Requires PHP:      8.0
  * Author:            Kairoseth
@@ -18,13 +18,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CFWP_VERSION', '0.2.4' );
+define( 'CFWP_VERSION', '0.3.0' );
 define( 'CFWP_PLUGIN_FILE', __FILE__ );
 define( 'CFWP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CFWP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 require_once CFWP_PLUGIN_DIR . 'includes/class-promoters.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-campaigns.php';
+require_once CFWP_PLUGIN_DIR . 'includes/class-contributions.php';
+require_once CFWP_PLUGIN_DIR . 'includes/class-contribution-repository.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-campaign-admin.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-campaign-submission.php';
