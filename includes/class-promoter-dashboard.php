@@ -20,7 +20,10 @@ final class Promoter_Dashboard {
 
 	public function render( array|string $atts = array() ): string {
 		$atts = shortcode_atts(
-			array( 'per_page' => 12 ),
+			array(
+				'per_page' => 12,
+				'edit_url' => '',
+			),
 			is_array( $atts ) ? $atts : array(),
 			'crowdfunding_promoter_dashboard'
 		);
@@ -43,6 +46,7 @@ final class Promoter_Dashboard {
 
 		$per_page = max( 1, min( 50, absint( $atts['per_page'] ) ) );
 		$page     = isset( $_GET[ self::QUERY_PAGE ] ) ? max( 1, absint( wp_unslash( $_GET[ self::QUERY_PAGE ] ) ) ) : 1;
+		$edit_url = '' !== trim( (string) $atts['edit_url'] ) ? esc_url_raw( (string) $atts['edit_url'] ) : '';
 
 		$query = new \WP_Query(
 			array(
@@ -69,7 +73,7 @@ final class Promoter_Dashboard {
 			<?php else : ?>
 				<div class="cfwp-dashboard__campaigns">
 					<?php foreach ( $query->posts as $campaign ) : ?>
-						<?php echo $this->render_campaign( $campaign ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						<?php echo $this->render_campaign( $campaign, $edit_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 					<?php endforeach; ?>
 				</div>
 
@@ -81,7 +85,7 @@ final class Promoter_Dashboard {
 		return (string) ob_get_clean();
 	}
 
-	private function render_campaign( \WP_Post $campaign ): string {
+	private function render_campaign( \WP_Post $campaign, string $edit_url ): string {
 		$goal_amount = (float) get_post_meta( $campaign->ID, Campaigns::META_GOAL_AMOUNT, true );
 		$currency    = (string) get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true );
 		$deadline    = (string) get_post_meta( $campaign->ID, Campaigns::META_DEADLINE, true );
@@ -119,8 +123,16 @@ final class Promoter_Dashboard {
 				<p class="cfwp-dashboard-card__actions">
 					<a href="<?php echo esc_url( get_permalink( $campaign ) ); ?>"><?php esc_html_e( 'View campaign', 'crowdfunding-wordpress' ); ?></a>
 				</p>
-			<?php elseif ( 'pending' === $campaign->post_status ) : ?>
-				<p class="cfwp-dashboard-card__message"><?php esc_html_e( 'This campaign is awaiting review.', 'crowdfunding-wordpress' ); ?></p>
+			<?php else : ?>
+				<?php if ( '' !== $edit_url ) : ?>
+					<p class="cfwp-dashboard-card__actions">
+						<a href="<?php echo esc_url( add_query_arg( 'cfwp_campaign_id', $campaign->ID, $edit_url ) ); ?>"><?php esc_html_e( 'Edit campaign', 'crowdfunding-wordpress' ); ?></a>
+					</p>
+				<?php endif; ?>
+
+				<?php if ( 'pending' === $campaign->post_status ) : ?>
+					<p class="cfwp-dashboard-card__message"><?php esc_html_e( 'This campaign is awaiting review.', 'crowdfunding-wordpress' ); ?></p>
+				<?php endif; ?>
 			<?php endif; ?>
 		</article>
 		<?php
