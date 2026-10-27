@@ -172,3 +172,49 @@
 	border-radius: 0.35rem;
 	text-align: center;
 }
+
+.cfwp-contribution-form-wrap {
+	margin: 1.25rem 0;
+}
+
+.cfwp-contribution-form {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 0.6rem;
+	align-items: end;
+	max-width: 32rem;
+}
+
+.cfwp-contribution-form label {
+	grid-column: 1 / -1;
+	font-weight: 600;
+}
+
+.cfwp-contribution-form input,
+.cfwp-contribution-form button {
+	box-sizing: border-box;
+	min-height: 2.75rem;
+	font: inherit;
+}
+
+.cfwp-contribution-form input {
+	width: 100%;
+	padding: 0.7rem 0.8rem;
+	border: 1px solid currentColor;
+	border-radius: 0.35rem;
+	background: transparent;
+	color: inherit;
+}
+
+.cfwp-contribution-form button {
+	padding: 0.7rem 1rem;
+	border: 1px solid currentColor;
+	border-radius: 0.35rem;
+	cursor: pointer;
+}
+
+@media (max-width: 34rem) {
+	.cfwp-contribution-form {
+		grid-template-columns: 1fr;
+	}
+}
