@@ -186,3 +186,32 @@ jobs:
             echo 'Promoter registration must never accept role authority from request input.'
             exit 1
           fi
+
+  contributions-contract:
+    name: Contributions ledger contract
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify contribution schema, states and idempotency remain generic
+        shell: bash
+        run: |
+          set -euo pipefail
+          domain='includes/class-contributions.php'
+          repo='includes/class-contribution-repository.php'
+          grep -Fq "return \$wpdb->prefix . 'cfwp_contributions';" "$domain"
+          grep -Fq "UNIQUE KEY source_reference (source,source_reference)" "$domain"
+          grep -Fq "public const STATUS_PENDING   = 'pending';" "$domain"
+          grep -Fq "public const STATUS_CONFIRMED = 'confirmed';" "$domain"
+          grep -Fq "public const STATUS_REFUNDED  = 'refunded';" "$domain"
+          grep -Fq "public const STATUS_CANCELLED = 'cancelled';" "$domain"
+          grep -Fq "resolve_idempotent_record" "$repo"
+          grep -Fq "cfwp_idempotency_conflict" "$repo"
+          grep -Fq "Contributions::STATUS_CONFIRMED" "$repo"
+          grep -Fq "null === \$this->find( \$contribution_id )" "$repo"
+          if grep -Ei 'woocommerce|\bwc_' "$domain" "$repo"; then
+            echo 'Contribution Core must remain payment-provider neutral.'
+            exit 1
+          fi

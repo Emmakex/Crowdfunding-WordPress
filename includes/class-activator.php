@@ -14,6 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Activator {
 	public static function activate(): void {
 		Promoters::install();
+		Contributions::install();
 
 		$campaigns = new Campaigns();
 		$campaigns->register_post_type();
