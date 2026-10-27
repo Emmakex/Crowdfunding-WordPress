@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.2.3
+Stable tag: 0.2.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,6 +23,7 @@ The plugin core is intentionally independent from any single crowdfunding platfo
 * Campaign deadline metadata.
 * Secure campaign details editor in WordPress admin.
 * Public campaign catalogue and campaign detail shortcodes.
+* Frontend promoter registration when site registration is enabled.
 * Frontend campaign submission shortcode for authorized promoters.
 * Submitted campaigns always enter `pending` review status.
 * Personal frontend promoter dashboard scoped to the current user's campaigns.
@@ -43,13 +44,18 @@ The plugin core is intentionally independent from any single crowdfunding platfo
 4. Create or edit a campaign and fill in its funding goal, currency and deadline.
 5. Publish a page with `[crowdfunding_campaigns]` to display the campaign catalogue.
 6. Use `[crowdfunding_campaign id="123"]` to embed one published campaign, or use `[crowdfunding_campaign]` inside a campaign context.
-7. Publish a page with `[crowdfunding_submit_campaign]` to provide the promoter submission form.
-8. Publish a page with `[crowdfunding_edit_campaign]` to provide the secure promoter editor.
-9. Publish a page with `[crowdfunding_promoter_dashboard edit_url="/edit-campaign/"]` for the signed-in promoter's personal campaign overview and edit links.
+7. Enable WordPress user registration if your site should allow public promoter onboarding, then publish a page with `[crowdfunding_promoter_register]`.
+8. Publish a page with `[crowdfunding_submit_campaign]` to provide the promoter submission form.
+9. Publish a page with `[crowdfunding_edit_campaign]` to provide the secure promoter editor.
+10. Publish a page with `[crowdfunding_promoter_dashboard edit_url="/edit-campaign/"]` for the signed-in promoter's personal campaign overview and edit links.
 
 == Promoters ==
 
 The `cfwp_promoter` role can create and edit its own draft or pending campaigns and upload campaign media. Promoters cannot publish campaigns, edit published campaigns, access private campaigns or manage campaigns owned by other users.
+
+The `[crowdfunding_promoter_register]` surface is available to signed-out visitors only when WordPress user registration is enabled. The server always creates the account with the `cfwp_promoter` role; role and capability values are never accepted from the browser. After a valid registration the new promoter is signed in and returned to the originating page.
+
+The default registration switch can be customized by developers through the `cfwp_promoter_registration_enabled` filter. The default value always follows the WordPress `users_can_register` setting.
 
 The `[crowdfunding_submit_campaign]` form is available only to signed-in users with the `edit_cfwp_campaigns` capability. Valid submissions are created as pending campaigns owned by the current user and must be reviewed before publication.
 
@@ -72,6 +78,10 @@ Displays published campaigns. Optional attributes:
 
 Displays one published campaign. Use the optional `id` attribute to select a campaign.
 
+= [crowdfunding_promoter_register] =
+
+Displays public promoter registration when WordPress user registration is enabled. The form collects username, email and password. Successful accounts always receive the `cfwp_promoter` role and are signed in automatically.
+
 = [crowdfunding_submit_campaign] =
 
 Displays the frontend campaign submission form. The user must be signed in and have permission to create campaigns. The form collects title, summary, story, funding goal, ISO currency and deadline. Every accepted submission is stored with `pending` status for review.
@@ -91,9 +101,13 @@ The dashboard does not accept an author/user parameter and never queries campaig
 
 == Frequently Asked Questions ==
 
-= Does version 0.2.3 process payments? =
+= Does version 0.2.4 process payments? =
 
 No. The 0.2.x line introduces promoter workflows on top of the campaign domain. WooCommerce contribution flows are planned for the 0.3.x line.
+
+= Can a promoter register without an administrator creating the account? =
+
+Yes, when WordPress user registration is enabled. The registration surface always assigns the dedicated `cfwp_promoter` role and never accepts a role from request data.
 
 = Can a promoter publish a campaign directly? =
 
@@ -107,10 +121,6 @@ Yes, but only their own `draft` or `pending` campaigns. The frontend editor chec
 
 No. The frontend update payload contains neither `post_author` nor `post_status`; those authorities remain outside the promoter editor.
 
-= Does the submission form create promoter accounts? =
-
-No. The current 0.2.x flow requires an existing signed-in user with campaign creation permission. Registration and promoter-account onboarding are separate concerns.
-
 = Why is there no raised amount or progress bar yet? =
 
 Those values will be introduced together with the contribution domain so that public funding metrics always come from real contribution records.
@@ -120,6 +130,14 @@ Those values will be introduced together with the contribution domain so that pu
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.2.4 =
+* Added `[crowdfunding_promoter_register]` for frontend promoter onboarding.
+* Public registration follows the WordPress user-registration switch by default.
+* New accounts are always assigned the dedicated `cfwp_promoter` role server-side.
+* Added nonce validation, username/email/password validation and safe redirects.
+* Successful promoter registrations are signed in automatically.
+* Added `cfwp_promoter_registration_enabled` filter and `cfwp_promoter_registered` action for integrations.
 
 = 0.2.3 =
 * Added `[crowdfunding_edit_campaign]` for secure frontend editing of owned draft or pending campaigns.
