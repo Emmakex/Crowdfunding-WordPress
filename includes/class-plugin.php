@@ -18,6 +18,7 @@ final class Plugin {
 	private Shortcodes $shortcodes;
 	private Campaign_Submission $campaign_submission;
 	private Campaign_Editor $campaign_editor;
+	private Reward_Manager $reward_manager;
 	private Promoter_Dashboard $promoter_dashboard;
 	private Promoter_Registration $promoter_registration;
 	private Campaign_Progress $campaign_progress;
@@ -32,6 +33,7 @@ final class Plugin {
 		$this->shortcodes                 = new Shortcodes();
 		$this->campaign_submission        = new Campaign_Submission();
 		$this->campaign_editor            = new Campaign_Editor();
+		$this->reward_manager             = new Reward_Manager();
 		$this->promoter_dashboard         = new Promoter_Dashboard();
 		$this->promoter_registration      = new Promoter_Registration();
 		$this->campaign_progress          = new Campaign_Progress();
@@ -70,6 +72,7 @@ final class Plugin {
 		add_action( 'init', array( $this->shortcodes, 'register' ) );
 		add_action( 'init', array( $this->campaign_submission, 'register' ) );
 		add_action( 'init', array( $this->campaign_editor, 'register' ) );
+		add_action( 'init', array( $this->reward_manager, 'register' ) );
 		add_action( 'init', array( $this->promoter_dashboard, 'register' ) );
 		add_action( 'init', array( $this->promoter_registration, 'register' ) );
 

@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.4.0
+Stable tag: 0.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -28,6 +28,8 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Refund adjustments with applied/reversed states and source/reference idempotency.
 * Generic versioned rewards domain linked to campaigns.
 * Reward minimum contribution thresholds, optional claim limits, enabled state and explicit ordering.
+* Authenticated frontend reward management for the promoter's own draft/pending campaigns.
+* Reward create, update and activate/deactivate actions protected by campaign ownership and operation-bound nonces.
 * WooCommerce adapter based on CRUD order/item objects with HPOS compatibility.
 * Classic checkout and Store API/Checkout Blocks order synchronization.
 * Frontend contribution form that sends an exact campaign amount into WooCommerce checkout.
@@ -54,6 +56,7 @@ The Core remains independent from any single crowdfunding platform, payment gate
 11. Use `[crowdfunding_contribute id="123"]` when the contribution form is needed outside the native campaign permalink.
 12. Enable WordPress user registration if your site should allow public promoter onboarding, then publish a page with `[crowdfunding_promoter_register]`.
 13. Publish pages with `[crowdfunding_submit_campaign]`, `[crowdfunding_edit_campaign]` and `[crowdfunding_promoter_dashboard edit_url="/edit-campaign/"]` for the promoter workflow.
+14. Publish a promoter-only page with `[crowdfunding_manage_rewards]`; pass `id="123"` or `cfwp_campaign_id` to manage rewards for one owned draft/pending campaign.
 
 == Contributions and adjustments ==
 
@@ -67,15 +70,17 @@ An applied refund can never exceed the contribution amount still available to re
 
 == Rewards ==
 
-Version 0.4.0 introduces the generic Core rewards domain without coupling a reward to a WooCommerce product.
+The generic Core rewards domain remains independent from WooCommerce products.
 
 Rewards are stored in the versioned `cfwp_rewards` table and belong to exactly one crowdfunding campaign. Each reward has a stable ID, title, description, minimum contribution amount, optional claim limit, enabled state and explicit sort order.
 
-A reward inherits the campaign's currency rather than duplicating a currency field. `claim_limit = 0` means unlimited. The claim limit is only the configured maximum; version 0.4.0 does not yet maintain mutable "remaining stock" because reward availability will be derived from a separate claims ledger in a later 0.4.x cut.
+A reward inherits the campaign's currency rather than duplicating a currency field. `claim_limit = 0` means unlimited. The claim limit is only the configured maximum; version 0.4.1 does not maintain mutable "remaining stock" because reward availability will be derived from a separate claims ledger in a later 0.4.x cut.
 
 The generic `Reward_Repository` can create rewards, update their mutable presentation/eligibility fields, find them by stable ID and list rewards for one campaign. Campaign ownership cannot be reassigned through reward updates.
 
-Version 0.4.0 intentionally does not expose reward selection in checkout and does not create reward claims. Those responsibilities remain separate from the Core reward definition.
+Version 0.4.1 adds `[crowdfunding_manage_rewards]`. The surface is authenticated-only and permits create, edit, sort and activate/deactivate operations only when the selected campaign is owned by the current user, remains `draft` or `pending`, and passes WordPress `edit_post` authorization. Every write revalidates that a supplied reward belongs to that authorized campaign.
+
+Reward management does not create reward claims, change campaign ownership, delete rewards or connect rewards to WooCommerce checkout. Those responsibilities remain separate 0.4.x cuts.
 
 == Funding progress ==
 
@@ -113,7 +118,7 @@ Paid WooCommerce statuses map to `confirmed`, `refunded` maps to `refunded`, `fa
 
 The `cfwp_promoter` role can create and edit its own draft or pending campaigns. Promoters cannot publish campaigns, edit published campaigns or manage campaigns owned by other users.
 
-`[crowdfunding_promoter_register]` creates the dedicated promoter role server-side when WordPress registration is enabled. `[crowdfunding_submit_campaign]` always creates a pending campaign owned by the current user. `[crowdfunding_edit_campaign]` verifies ownership, draft/pending status and WordPress `edit_post` capability. `[crowdfunding_promoter_dashboard]` always queries the current user's campaigns.
+`[crowdfunding_promoter_register]` creates the dedicated promoter role server-side when WordPress registration is enabled. `[crowdfunding_submit_campaign]` always creates a pending campaign owned by the current user. `[crowdfunding_edit_campaign]` verifies ownership, draft/pending status and WordPress `edit_post` capability. `[crowdfunding_promoter_dashboard]` always queries the current user's campaigns. `[crowdfunding_manage_rewards]` applies the same ownership and pre-publication boundary to reward management.
 
 Administrators retain full authority over review, publication and lifecycle management.
 
@@ -140,6 +145,9 @@ Displays the authenticated promoter campaign submission form. Accepted submissio
 = [crowdfunding_edit_campaign] =
 Displays the editor for one campaign owned by the current user. Only draft and pending campaigns are editable.
 
+= [crowdfunding_manage_rewards] =
+Displays authenticated reward management for one campaign owned by the current user. Optional `id` selects the campaign; without it, `cfwp_campaign_id` can select the campaign. Only draft and pending campaigns are manageable.
+
 = [crowdfunding_promoter_dashboard] =
 Displays the current user's draft, pending and published campaigns. Optional `per_page` (1–50) and `edit_url` attributes.
 
@@ -153,21 +161,21 @@ Confirmed Core contributions minus applied refund adjustments. Pending and cance
 
 No. Reward definitions belong to the generic crowdfunding Core. WooCommerce remains the checkout/payment layer. A later 0.4.x cut will define how a selected reward is carried through checkout and claimed.
 
-= Does a reward claim limit mean remaining stock is already tracked? =
+= Can a promoter manage rewards on a published campaign? =
 
-No. `claim_limit` is the configured maximum and zero means unlimited. Actual claimed/remaining availability will be derived from a dedicated claims ledger rather than a mutable counter on the reward.
+Not through the 0.4.1 frontend reward manager. That surface is intentionally restricted to the current user's own draft or pending campaigns so reward definitions are finalized before publication.
+
+= Does managing a reward create a claim or reserve stock? =
+
+No. `claim_limit` is configuration only. Actual claimed/remaining availability will be derived from a dedicated claims ledger.
 
 = Can an existing reward be moved to another campaign? =
 
-Not through the reward repository update contract. A reward's campaign ownership is treated as an identity fact after creation.
+Not through the reward repository update contract or the frontend manager. A reward's campaign ownership is treated as an identity fact after creation.
 
 = Does a partial refund overwrite the original contribution amount? =
 
 No. Refunds are independent adjustment records so the original transaction and every adjustment remain auditable.
-
-= What happens if a partial WooCommerce refund has no line-item attribution? =
-
-Crowdfunding WordPress fails closed. It does not guess which contribution should be reduced. An integration can observe `cfwp_woocommerce_refund_sync_error` and resolve the ambiguity explicitly.
 
 = Does this plugin process payments? =
 
@@ -183,6 +191,13 @@ No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference 
 
 == Changelog ==
 
+= 0.4.1 =
+* Added authenticated `[crowdfunding_manage_rewards]` frontend management for rewards on owned draft/pending campaigns.
+* Added create, update, sort and activate/deactivate operations.
+* Added operation/campaign/reward-bound nonces and ownership revalidation on every write.
+* Reward IDs and campaign ownership remain stable; updates cannot move a reward between campaigns.
+* No reward deletion, claims, remaining-stock mutation or WooCommerce checkout coupling was introduced.
+
 = 0.4.0 =
 * Added the versioned generic `cfwp_rewards` domain table.
 * Added stable reward IDs linked to exactly one crowdfunding campaign.
@@ -194,19 +209,11 @@ No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference 
 * Reward selection, claims and fulfillment remain separate 0.4.x cuts.
 
 = 0.3.4 =
-* Added a versioned immutable contribution-adjustment ledger.
-* Added idempotent refund adjustments with `applied` and `reversed` states.
-* Added exact remaining-refundable validation so cumulative refunds cannot exceed the original contribution.
-* Added WooCommerce line-attributed partial refund synchronization via `_refunded_item_id`.
-* Added fail-closed handling for ambiguous amount-only partial refunds.
-* Added safe full-order-refund allocation of each crowdfunding contribution's remaining refundable balance.
-* Added refund deletion reversal without deleting crowdfunding audit history.
+* Added a versioned immutable contribution-adjustment ledger and WooCommerce partial-refund integrity.
 * Public campaign progress now uses confirmed contributions net of applied refund adjustments.
-* Kept the original contribution amount immutable and kept the generic adjustment ledger independent from WooCommerce.
 
 = 0.3.3 =
 * Added authoritative public funding progress derived from confirmed Core contribution totals.
-* Added `[crowdfunding_progress]`, catalogue/detail progress and accessible overfunding-aware rendering.
 
 = 0.3.2 =
 * Added the secure campaign-to-WooCommerce contribution checkout path and exact order-line markers.

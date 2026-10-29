@@ -1,0 +1,53 @@
+name: Reward Management
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  reward-management-contract:
+    name: Reward management authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify reward management remains owner-scoped and pre-publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='includes/class-reward-manager.php'
+          repo='includes/class-reward-repository.php'
+          dashboard='includes/class-promoter-dashboard.php'
+
+          grep -Fq "add_shortcode( 'crowdfunding_manage_rewards'" "$file"
+          grep -Fq "add_action( 'admin_post_' . self::ACTION" "$file"
+          grep -Fq "private const EDITABLE_STATUSES = array( 'draft', 'pending' );" "$file"
+          grep -Fq "(int) \$campaign->post_author === get_current_user_id()" "$file"
+          grep -Fq "current_user_can( 'edit_post', \$campaign->ID )" "$file"
+          grep -Fq "(int) \$reward['campaign_id'] !== \$campaign_id" "$file"
+          grep -Fq "wp_verify_nonce( \$nonce, \$this->nonce_action( \$operation, \$campaign_id, \$reward_id ) )" "$file"
+          grep -Fq "array( 'create', 'update', 'toggle' )" "$file"
+          grep -Fq "\$this->reward_data( \$campaign_id, false )" "$file"
+          grep -Fq "'sort_order'" "$file"
+          grep -Fq "'claim_limit'" "$file"
+          grep -Fq "'enabled' => ! (bool) \$reward['enabled']" "$file"
+          grep -Fq "'rewards_url' => ''" "$dashboard"
+          grep -Fq "Manage rewards" "$dashboard"
+
+          if grep -Fq "admin_post_nopriv_" "$file"; then
+            echo 'Reward management must remain authenticated-only.'
+            exit 1
+          fi
+
+          if grep -Ei 'woocommerce|\bwc_|Contribution_Repository|Contribution_Adjustment|Reward_Claim_Repository|class-reward-claim|cfwp_reward_claim_id|cfwp_reward_claims' "$file"; then
+            echo 'Reward management must not create checkout, contribution, refund or claim authority.'
+            exit 1
+          fi
+
+          if grep -Ei 'function[[:space:]]+delete|public[[:space:]]+function[[:space:]]+delete' "$repo" "$file"; then
+            echo 'Reward deletion remains out of scope before claims lifecycle exists.'
+            exit 1
+          fi
