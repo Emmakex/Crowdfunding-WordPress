@@ -20,7 +20,7 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability and fulfillment remain separate Core authorities.
 
-As of **0.4.8**, the repository includes:
+As of **0.4.9**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -37,6 +37,7 @@ As of **0.4.8**, the repository includes:
 - versioned reward-fulfillment state separate from entitlement;
 - immutable fulfillment transition events with source/reference idempotency;
 - automatic claim-lifecycle synchronization into fulfillment state;
+- bounded, idempotent backfill for historical active claims missing fulfillment;
 - explicit protection against automatically reversing a fulfillment already marked `fulfilled`;
 - HPOS-safe WooCommerce order and refund adapters;
 - authoritative net confirmed raised amount and campaign progress.
@@ -59,8 +60,10 @@ As of **0.4.8**, the repository includes:
 - Reactivated claims recover a cancelled fulfillment back to `pending` rather than creating a duplicate.
 - Repeated active/reversed cycles use distinct idempotent fulfillment event references derived from event sequence.
 - `fulfilled` is terminal and is never automatically changed when a claim is later reversed; the mismatch is surfaced for manual review.
+- Historical active claims missing fulfillment are reconciled in bounded batches through the same `ensure_for_claim()` authority used by normal Core creation.
+- Backfill reads claims but never mutates claim rows; completion is recorded only after no active claim remains without fulfillment.
 - Forward fulfillment progress requires an active reward claim.
-- Fulfillment stores no billing, shipping or customer PII in this lifecycle bridge.
+- Fulfillment stores no billing, shipping or customer PII in this lifecycle bridge/backfill foundation.
 - Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
 - Original contribution amounts are immutable; financial corrections are additive adjustment records.
 - Escaping, sanitization, capability checks, nonces and idempotency are mandatory.
