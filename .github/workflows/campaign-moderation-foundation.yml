@@ -1,0 +1,51 @@
+name: Campaign Moderation Foundation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  moderation-foundation:
+    name: Campaign moderation authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify moderation remains separate from editorial publication
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          file="includes/class-campaign-moderation.php"
+          submission="includes/class-campaign-submission.php"
+          promoters="includes/class-promoters.php"
+          bootstrap="crowdfunding-wordpress.php"
+          plugin="includes/class-plugin.php"
+
+          grep -Fq "public const META_STATUS = '_cfwp_moderation_status';" "$file"
+          grep -Fq "public const STATUS_SUBMITTED = 'submitted';" "$file"
+          grep -Fq "public const STATUS_IN_REVIEW = 'in_review';" "$file"
+          grep -Fq "public const STATUS_APPROVED  = 'approved';" "$file"
+          grep -Fq "public const STATUS_REJECTED  = 'rejected';" "$file"
+          grep -Fq "register_post_meta(" "$file"
+          grep -Fq "'show_in_rest'      => false" "$file"
+          grep -Fq "current_user_can( 'moderate_cfwp_campaigns' )" "$file"
+          grep -Fq "self::STATUS_SUBMITTED => array( self::STATUS_IN_REVIEW, self::STATUS_APPROVED, self::STATUS_REJECTED )" "$file"
+          grep -Fq "self::STATUS_IN_REVIEW => array( self::STATUS_APPROVED, self::STATUS_REJECTED )" "$file"
+          grep -Fq "self::STATUS_APPROVED  => array()" "$file"
+          grep -Fq "self::STATUS_REJECTED  => array( self::STATUS_SUBMITTED )" "$file"
+
+          grep -Fq "'post_status'  => 'pending'" "$submission"
+          grep -Fq "Campaign_Moderation::mark_submitted( \$post_id )" "$submission"
+          grep -Fq "'moderate_cfwp_campaigns'        => false" "$promoters"
+          grep -Fq "'moderate_cfwp_campaigns'," "$promoters"
+          grep -Fq "private const SCHEMA_VERSION        = '3';" "$promoters"
+          grep -Fq "includes/class-campaign-moderation.php" "$bootstrap"
+          grep -Fq "Campaign_Moderation::class, 'register_meta'" "$plugin"
+
+          if grep -Eq 'wp_update_post|wp_publish_post|wp_transition_post_status|transition_post_status|publish_cfwp_campaigns' "$file"; then exit 1; fi
+          if grep -Eq '\$wpdb|woocommerce|wc_|Contribution|Reward_|Reward\\|Fulfillment' "$file"; then exit 1; fi
+          if grep -Eq 'WP_Query|get_posts|get_post_status' "$file"; then exit 1; fi
