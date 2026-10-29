@@ -84,9 +84,7 @@ final class Contribution_Adjustment_Repository {
 		return $adjustment_id;
 	}
 
-	/**
-	 * @return array<string,mixed>|null
-	 */
+	/** @return array<string,mixed>|null */
 	public function find_by_source( string $source, string $source_reference ): ?array {
 		global $wpdb;
 
@@ -129,7 +127,7 @@ final class Contribution_Adjustment_Repository {
 		return self::normalize_zero( $total );
 	}
 
-	public function remaining_refundable_for_contribution( int $contribution_id ): string {
+	public function net_amount_for_contribution( int $contribution_id ): string {
 		$contribution = $this->contributions->find( $contribution_id );
 		if ( ! is_array( $contribution ) ) {
 			return '0.00000000';
@@ -142,6 +140,10 @@ final class Contribution_Adjustment_Repository {
 
 		$refunded = $this->active_refund_total_for_contribution( $contribution_id );
 		return self::subtract_decimals( $original, $refunded );
+	}
+
+	public function remaining_refundable_for_contribution( int $contribution_id ): string {
+		return $this->net_amount_for_contribution( $contribution_id );
 	}
 
 	public function net_confirmed_total_for_campaign( int $campaign_id ): string {
@@ -184,6 +186,17 @@ final class Contribution_Adjustment_Repository {
 			return new \WP_Error( 'cfwp_adjustment_reverse_invalid_source', __( 'A valid adjustment source prefix is required.', 'crowdfunding-wordpress' ) );
 		}
 
+		$matching = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT id, contribution_id, source_reference FROM ' . Contribution_Adjustments::table_name() . ' WHERE source = %s AND source_reference LIKE %s AND status = %s ORDER BY id ASC',
+				$source,
+				$wpdb->esc_like( $source_reference_prefix ) . '%',
+				Contribution_Adjustments::STATUS_APPLIED
+			),
+			ARRAY_A
+		);
+		$matching = is_array( $matching ) ? $matching : array();
+
 		$updated = $wpdb->query(
 			$wpdb->prepare(
 				'UPDATE ' . Contribution_Adjustments::table_name() . ' SET status = %s, updated_at = %s WHERE source = %s AND source_reference LIKE %s AND status = %s',
@@ -200,6 +213,14 @@ final class Contribution_Adjustment_Repository {
 		}
 
 		do_action( 'cfwp_contribution_adjustments_reversed', $source, $source_reference_prefix, (int) $updated );
+		foreach ( $matching as $row ) {
+			$adjustment_id  = isset( $row['id'] ) ? absint( $row['id'] ) : 0;
+			$contribution_id = isset( $row['contribution_id'] ) ? absint( $row['contribution_id'] ) : 0;
+			$reference       = isset( $row['source_reference'] ) ? (string) $row['source_reference'] : '';
+			if ( $adjustment_id > 0 && $contribution_id > 0 ) {
+				do_action( 'cfwp_contribution_adjustment_reversed', $adjustment_id, $contribution_id, $source, $reference );
+			}
+		}
 		return true;
 	}
 
