@@ -25,6 +25,35 @@ final class Notification_Recipient_Resolver {
 	public const ROLE_CAMPAIGN_OWNER = 'campaign_owner';
 	public const ROLE_CONTRIBUTOR    = 'contributor';
 
+	private static bool $registered = false;
+
+	public static function register(): void {
+		if ( self::$registered ) {
+			return;
+		}
+
+		self::$registered = true;
+		add_action( 'cfwp_notification_event', array( self::class, 'handle_event' ), 10, 1 );
+	}
+
+	/** @param array<string,mixed> $event */
+	public static function handle_event( array $event ): void {
+		$recipients = self::resolve( $event );
+		if ( empty( $recipients ) ) {
+			return;
+		}
+
+		/**
+		 * Fires after recipient references have been resolved from committed Core
+		 * records. Delivery adapters may consume this action later, but must still
+		 * resolve their own channel destination at send time.
+		 *
+		 * @param array<string,mixed> $event Normalized notification event.
+		 * @param array<int,array{type:string,user_id:int,roles:array<int,string>}> $recipients Stable non-address recipient references.
+		 */
+		do_action( 'cfwp_notification_recipients_resolved', $event, $recipients );
+	}
+
 	/**
 	 * Resolve one normalized notification event.
 	 *
@@ -61,9 +90,6 @@ final class Notification_Recipient_Resolver {
 		return array_values( $recipients );
 	}
 
-	/**
-	 * Resolve an account-linked contributor strictly from Core records.
-	 */
 	private static function contributor_user_id( string $name, string $entity_type, int $entity_id, int $campaign_id ): int {
 		$contribution = null;
 
@@ -107,9 +133,7 @@ final class Notification_Recipient_Resolver {
 		return absint( $contribution['user_id'] ?? 0 );
 	}
 
-	/**
-	 * @param array<int,array{type:string,user_id:int,roles:array<int,string>}> $recipients
-	 */
+	/** @param array<int,array{type:string,user_id:int,roles:array<int,string>}> $recipients */
 	private static function add_recipient( array &$recipients, int $user_id, string $role ): void {
 		$user_id = absint( $user_id );
 		$role    = sanitize_key( $role );
