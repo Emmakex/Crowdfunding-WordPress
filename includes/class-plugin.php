@@ -21,6 +21,7 @@ final class Plugin {
 	private Reward_Manager $reward_manager;
 	private Reward_Display $reward_display;
 	private Reward_Fulfillment_Manager $reward_fulfillment_manager;
+	private Contribution_Dashboard $contribution_dashboard;
 	private Promoter_Dashboard $promoter_dashboard;
 	private Promoter_Registration $promoter_registration;
 	private Campaign_Progress $campaign_progress;
@@ -41,6 +42,7 @@ final class Plugin {
 		$this->reward_manager                         = new Reward_Manager();
 		$this->reward_display                         = new Reward_Display();
 		$this->reward_fulfillment_manager             = new Reward_Fulfillment_Manager();
+		$this->contribution_dashboard                 = new Contribution_Dashboard();
 		$this->promoter_dashboard                     = new Promoter_Dashboard();
 		$this->promoter_registration                  = new Promoter_Registration();
 		$this->campaign_progress                      = new Campaign_Progress();
@@ -91,6 +93,7 @@ final class Plugin {
 		add_action( 'init', array( $this->reward_manager, 'register' ) );
 		add_action( 'init', array( $this->reward_fulfillment_manager, 'register' ) );
 		add_action( 'init', array( Reward_Fulfillment_Audit::class, 'register' ) );
+		add_action( 'init', array( $this->contribution_dashboard, 'register' ) );
 		add_action( 'init', array( $this->promoter_dashboard, 'register' ) );
 		add_action( 'init', array( $this->promoter_registration, 'register' ) );
 
