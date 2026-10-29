@@ -1,0 +1,62 @@
+name: Rewards Domain
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rewards-domain-contract:
+    name: Rewards domain contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify rewards remain generic, stable and claim-ready
+        shell: bash
+        run: |
+          set -euo pipefail
+          domain='includes/class-rewards.php'
+          repo='includes/class-reward-repository.php'
+          bootstrap='crowdfunding-wordpress.php'
+          activator='includes/class-activator.php'
+          plugin='includes/class-plugin.php'
+
+          grep -Fq "return \$wpdb->prefix . 'cfwp_rewards';" "$domain"
+          grep -Fq 'minimum_amount decimal(20,8)' "$domain"
+          grep -Fq 'claim_limit bigint(20) unsigned NOT NULL DEFAULT 0' "$domain"
+          grep -Fq 'enabled tinyint(1) unsigned NOT NULL DEFAULT 1' "$domain"
+          grep -Fq 'KEY campaign_enabled_sort (campaign_id,enabled,sort_order)' "$domain"
+
+          grep -Fq 'public function create(' "$repo"
+          grep -Fq 'public function update(' "$repo"
+          grep -Fq 'public function find(' "$repo"
+          grep -Fq 'public function list_for_campaign(' "$repo"
+          grep -Fq "Campaigns::POST_TYPE !== \$campaign->post_type" "$repo"
+          grep -Fq "ORDER BY sort_order ASC, minimum_amount ASC, id ASC" "$repo"
+          grep -Fq "Rewards::install();" "$activator"
+          grep -Fq "Rewards::class, 'maybe_install'" "$plugin"
+          grep -Fq "includes/class-rewards.php" "$bootstrap"
+          grep -Fq "includes/class-reward-repository.php" "$bootstrap"
+
+          if grep -Ei 'woocommerce|\bwc_|Contribution_Repository|Contribution_Adjustment|Contributions::' "$domain" "$repo"; then
+            echo 'Reward definitions must remain independent from commerce and contribution ledgers.'
+            exit 1
+          fi
+
+          if grep -Ei 'remaining|stock' "$domain"; then
+            echo 'Reward definition schema must not store mutable remaining inventory.'
+            exit 1
+          fi
+
+          if grep -Ei 'currency' "$domain" "$repo"; then
+            echo 'Rewards inherit campaign currency and must not duplicate currency authority.'
+            exit 1
+          fi
+
+          if grep -Eq 'function[[:space:]]+delete' "$repo"; then
+            echo 'Reward repository must not expose destructive deletion before claim history exists.'
+            exit 1
+          fi
