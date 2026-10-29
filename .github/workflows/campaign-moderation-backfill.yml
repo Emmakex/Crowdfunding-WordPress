@@ -64,7 +64,9 @@ jobs:
             exit 1
           fi
 
-          if grep -Eq 'update_post_meta|delete_post_meta' "$authority" | grep -q 'bootstrap_legacy_status'; then
+          bootstrap_body="$(awk '/public static function bootstrap_legacy_status/{flag=1} flag{print} /public static function allowed_transitions/{flag=0}' "$authority")"
+          if printf '%s\n' "$bootstrap_body" | grep -Eq 'update_post_meta|delete_post_meta|wp_update_post|wp_publish_post|wp_transition_post_status|transition_post_status'; then
+            echo 'Legacy bootstrap must be insert-only and must never mutate WordPress editorial state.'
             exit 1
           fi
 
