@@ -12,6 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Campaign_Statistics_Query {
+	private const MAX_RANGE_DAYS = 366;
+
 	private Contribution_Adjustment_Repository $adjustments;
 
 	public function __construct() {
@@ -73,17 +75,158 @@ final class Campaign_Statistics_Query {
 	}
 
 	/**
+	 * Return aggregate contribution activity grouped by contribution creation period.
+	 *
+	 * Net values use current confirmed status and current applied refund facts. They
+	 * are attributed to the contribution creation period and do not reconstruct a
+	 * historical balance for that past date.
+	 *
+	 * @return array{from:string,to:string,bucket:string,rows:array<int,array<string,mixed>>}
+	 */
+	public function trends_for_campaign( int $campaign_id, string $from = '', string $to = '', string $bucket = 'day' ): array {
+		$campaign_id = absint( $campaign_id );
+		$range       = $this->normalize_range( $from, $to );
+		$bucket      = $this->normalize_bucket( $bucket );
+		$result      = array(
+			'from'   => $range['from'],
+			'to'     => $range['to'],
+			'bucket' => $bucket,
+			'rows'   => array(),
+		);
+
+		if ( $campaign_id <= 0 ) {
+			return $result;
+		}
+
+		global $wpdb;
+
+		$contributions_table = Contributions::table_name();
+		$adjustments_table   = Contribution_Adjustments::table_name();
+		$bucket_expression   = $this->bucket_expression( $bucket );
+		$from_datetime       = $range['from'] . ' 00:00:00';
+		$to_datetime         = $range['to'] . ' 23:59:59';
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT {$bucket_expression} AS bucket_start,
+					COUNT(*) AS contribution_total,
+					SUM(CASE WHEN c.status = %s THEN 1 ELSE 0 END) AS confirmed_total,
+					COALESCE(SUM(CASE WHEN c.status = %s THEN c.amount - COALESCE(r.refunded, 0) ELSE 0 END), 0) AS net_raised
+				FROM {$contributions_table} c
+				LEFT JOIN (
+					SELECT contribution_id, SUM(amount) AS refunded
+					FROM {$adjustments_table}
+					WHERE type = %s AND status = %s
+					GROUP BY contribution_id
+				) r ON r.contribution_id = c.id
+				WHERE c.campaign_id = %d
+					AND c.created_at >= %s
+					AND c.created_at <= %s
+				GROUP BY bucket_start
+				ORDER BY bucket_start ASC",
+				Contributions::STATUS_CONFIRMED,
+				Contributions::STATUS_CONFIRMED,
+				Contribution_Adjustments::TYPE_REFUND,
+				Contribution_Adjustments::STATUS_APPLIED,
+				$campaign_id,
+				$from_datetime,
+				$to_datetime
+			),
+			ARRAY_A
+		);
+
+		if ( ! is_array( $rows ) ) {
+			return $result;
+		}
+
+		foreach ( $rows as $row ) {
+			$bucket_start = isset( $row['bucket_start'] ) ? (string) $row['bucket_start'] : '';
+			if ( ! $this->parse_date( $bucket_start ) instanceof \DateTimeImmutable ) {
+				continue;
+			}
+
+			$result['rows'][] = array(
+				'bucket_start'       => $bucket_start,
+				'contribution_total' => max( 0, (int) ( $row['contribution_total'] ?? 0 ) ),
+				'confirmed_total'    => max( 0, (int) ( $row['confirmed_total'] ?? 0 ) ),
+				'net_raised'         => $this->normalize_zero( $row['net_raised'] ?? 0 ),
+			);
+		}
+
+		return $result;
+	}
+
+	/**
 	 * @param array<string,int> $contribution_counts Contribution counts by Core status.
 	 * @param array<string,int> $claim_counts Reward claim counts by Core status.
 	 * @return array<string,mixed>
 	 */
 	private function summary( int $campaign_id, array $contribution_counts, array $claim_counts ): array {
 		return array(
-			'net_raised'           => $campaign_id > 0 ? $this->adjustments->net_confirmed_total_for_campaign( $campaign_id ) : '0.00000000',
-			'contribution_total'   => array_sum( $contribution_counts ),
-			'contribution_statuses'=> $contribution_counts,
-			'claim_total'          => array_sum( $claim_counts ),
-			'claim_statuses'       => $claim_counts,
+			'net_raised'            => $campaign_id > 0 ? $this->adjustments->net_confirmed_total_for_campaign( $campaign_id ) : '0.00000000',
+			'contribution_total'    => array_sum( $contribution_counts ),
+			'contribution_statuses' => $contribution_counts,
+			'claim_total'           => array_sum( $claim_counts ),
+			'claim_statuses'        => $claim_counts,
 		);
+	}
+
+	/** @return array{from:string,to:string} */
+	private function normalize_range( string $from, string $to ): array {
+		$timezone = new \DateTimeZone( 'UTC' );
+		$today    = new \DateTimeImmutable( 'today', $timezone );
+		$to_date  = $this->parse_date( $to ) ?? $today;
+		$from_date = $this->parse_date( $from ) ?? $to_date->modify( '-29 days' );
+
+		if ( $from_date > $to_date ) {
+			$from_date = $to_date;
+		}
+
+		$minimum = $to_date->modify( '-' . ( self::MAX_RANGE_DAYS - 1 ) . ' days' );
+		if ( $from_date < $minimum ) {
+			$from_date = $minimum;
+		}
+
+		return array(
+			'from' => $from_date->format( 'Y-m-d' ),
+			'to'   => $to_date->format( 'Y-m-d' ),
+		);
+	}
+
+	private function normalize_bucket( string $bucket ): string {
+		$bucket = sanitize_key( $bucket );
+		return in_array( $bucket, array( 'day', 'week', 'month' ), true ) ? $bucket : 'day';
+	}
+
+	private function bucket_expression( string $bucket ): string {
+		if ( 'week' === $bucket ) {
+			return 'DATE_SUB(DATE(c.created_at), INTERVAL WEEKDAY(c.created_at) DAY)';
+		}
+
+		if ( 'month' === $bucket ) {
+			return "CONCAT(YEAR(c.created_at), '-', LPAD(MONTH(c.created_at), 2, '0'), '-01')";
+		}
+
+		return 'DATE(c.created_at)';
+	}
+
+	private function parse_date( string $value ): ?\DateTimeImmutable {
+		$value = trim( $value );
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value ) ) {
+			return null;
+		}
+
+		$date   = \DateTimeImmutable::createFromFormat( '!Y-m-d', $value, new \DateTimeZone( 'UTC' ) );
+		$errors = \DateTimeImmutable::getLastErrors();
+		if ( false === $date || ( is_array( $errors ) && ( $errors['warning_count'] > 0 || $errors['error_count'] > 0 ) ) ) {
+			return null;
+		}
+
+		return $date->format( 'Y-m-d' ) === $value ? $date : null;
+	}
+
+	private function normalize_zero( mixed $value ): string {
+		$normalized = Contribution_Adjustment_Repository::normalize_amount( $value );
+		return '' === $normalized ? '0.00000000' : $normalized;
 	}
 }
