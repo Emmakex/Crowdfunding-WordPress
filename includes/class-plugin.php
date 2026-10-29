@@ -62,6 +62,7 @@ final class Plugin {
 		add_action( 'init', array( Promoters::class, 'maybe_install' ), 1 );
 		add_action( 'init', array( Contributions::class, 'maybe_install' ), 2 );
 		add_action( 'init', array( Contribution_Adjustments::class, 'maybe_install' ), 3 );
+		add_action( 'init', array( Rewards::class, 'maybe_install' ), 4 );
 		add_action( 'init', array( $this->campaigns, 'register_post_type' ) );
 		add_action( 'init', array( $this->campaigns, 'register_meta' ) );
 		add_action( 'init', array( $this, 'load_textdomain' ), 1 );
