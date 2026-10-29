@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit`
+`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit → account/campaign dashboards`
 
-Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability, fulfillment and account dashboards remain separate Core authorities.
+Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability, fulfillment, account dashboards and campaign statistics remain separate Core authorities.
 
-As of **0.5.0**, the repository includes:
+As of **0.5.1**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -29,6 +29,8 @@ As of **0.5.0**, the repository includes:
 - authenticated current-user contribution dashboard derived from Core records;
 - dashboard net amounts derived from applied refund adjustments, never order totals;
 - dashboard reward entitlement derived from Core reward claims;
+- authenticated campaign-owner aggregate statistics;
+- campaign net funding, progress, contribution-state counts and reward-claim counts derived from Core authorities;
 - generic versioned rewards domain linked to campaigns;
 - frontend reward management and public reward presentation;
 - versioned reward-claims ledger with active/reversed lifecycle;
@@ -78,6 +80,8 @@ As of **0.5.0**, the repository includes:
 - Dashboard financial values come from the contribution and adjustment Core ledgers, not WooCommerce orders or editable user metadata.
 - Dashboard reward entitlement comes from Core reward claims; technical source references and customer PII are not exposed.
 - Guest contributions with `user_id = 0` are not attached heuristically to an authenticated account.
+- Campaign statistics are campaign-scoped aggregate reads; browser-selected campaign IDs are reauthorized against campaign ownership.
+- Campaign statistics reuse the authoritative net-confirmed total and expose only aggregate contribution/claim counts, never supporter rows or PII.
 - Fulfillment stores no billing, shipping, tracking or customer PII in this management/audit foundation.
 - Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
 - Original contribution amounts are immutable; financial corrections are additive adjustment records.
