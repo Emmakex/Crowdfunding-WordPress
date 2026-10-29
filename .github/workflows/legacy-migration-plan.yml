@@ -1,0 +1,62 @@
+name: Legacy Migration Plan
+
+on:
+  pull_request:
+    paths:
+      - 'includes/compat/class-legacy-migration-mapping.php'
+      - 'includes/compat/class-legacy-migration-inspector.php'
+      - 'includes/compat/class-legacy-migration-plan.php'
+      - 'includes/compat/class-legacy-migration-admin.php'
+      - 'crowdfunding-wordpress.php'
+      - '.github/workflows/legacy-migration-plan.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  legacy-migration-plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify preview classifications and fail-closed behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          plan='includes/compat/class-legacy-migration-plan.php'
+          mapping='includes/compat/class-legacy-migration-mapping.php'
+          admin='includes/compat/class-legacy-migration-admin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq "public const STATUS_MIGRATABLE = 'migratable';" "$plan"
+          grep -Fq "public const STATUS_BLOCKED    = 'blocked';" "$plan"
+          grep -Fq "public const STATUS_CONFLICT   = 'conflict';" "$plan"
+          grep -Fq "public const DEFAULT_LIMIT     = 100;" "$plan"
+          grep -Fq "Legacy_Migration_Mapping::write_ready()" "$plan"
+          grep -Fq "'mapping_not_write_ready'" "$plan"
+          grep -Fq "'target_slug_exists'" "$plan"
+          grep -Fq "'unmapped_editorial_status'" "$plan"
+          grep -Fq "array_keys( Legacy_Migration_Mapping::campaign_post_fields() )" "$plan"
+          grep -Fq "private function target_by_slug" "$plan"
+          grep -Fq "new Legacy_Migration_Plan()" "$admin"
+          grep -Fq "Campaign migration preview" "$admin"
+          grep -Fq "STATUS_MIGRATABLE" "$admin"
+          grep -Fq "STATUS_BLOCKED" "$admin"
+          grep -Fq "STATUS_CONFLICT" "$admin"
+          grep -Fq "includes/compat/class-legacy-migration-plan.php" "$bootstrap"
+
+          if grep -Eiq 'wp_insert_post|wp_update_post|update_post_meta|add_post_meta|delete_post_meta|\$wpdb->(insert|update|delete|replace)|dbDelta|update_option|add_option|delete_option' "$plan" "$admin"; then
+            echo 'Migration plan must remain a read-only preview.' >&2
+            exit 1
+          fi
+
+          php -r '
+            define("ABSPATH", __DIR__);
+            require "includes/class-campaigns.php";
+            require "includes/compat/class-legacy-migration-mapping.php";
+            use Kairoseth\CrowdfundingWordPress\Compat\Legacy_Migration_Mapping;
+            if (Legacy_Migration_Mapping::write_ready()) { fwrite(STDERR, "Preview must remain blocked while mapping is incomplete.\n"); exit(1); }
+          '
+
+          php -l "$plan"
+          php -l "$admin"
+          php -l "$bootstrap"
