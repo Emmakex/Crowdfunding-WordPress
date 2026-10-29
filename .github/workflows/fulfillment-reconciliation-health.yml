@@ -59,8 +59,13 @@ jobs:
             exit 1
           fi
 
-          if grep -Eiq 'user_id|user_email|email|billing|shipping|phone|customer|source_reference|tracking' "$query" "$surface"; then
-            echo 'Fulfillment reconciliation health must remain free of supporter PII and technical references.'
+          if grep -Eiq 'user_id|user_email|email|billing|shipping|phone|customer|source_reference|tracking' "$query"; then
+            echo 'Fulfillment reconciliation health query must not select or return supporter identity, PII or technical references.'
+            exit 1
+          fi
+
+          if grep -Eiq 'user_email|email|billing|shipping|phone|customer|source_reference|tracking' "$surface"; then
+            echo 'Fulfillment reconciliation health surface must remain free of supporter PII and technical references.'
             exit 1
           fi
 
