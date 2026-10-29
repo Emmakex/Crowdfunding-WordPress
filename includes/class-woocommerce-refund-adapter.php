@@ -58,10 +58,6 @@ final class WooCommerce_Refund_Adapter {
 			$attributed = $result || $attributed;
 		}
 
-		if ( $attributed ) {
-			return;
-		}
-
 		$marked_items = $this->crowdfunding_order_items( $order );
 		if ( empty( $marked_items ) ) {
 			return;
@@ -70,6 +66,10 @@ final class WooCommerce_Refund_Adapter {
 		$status = method_exists( $order, 'get_status' ) ? sanitize_key( (string) $order->get_status() ) : '';
 		if ( 'refunded' === $status ) {
 			$this->allocate_full_order_refund( $order_id, $refund_id, $marked_items );
+			return;
+		}
+
+		if ( $attributed ) {
 			return;
 		}
 
@@ -113,7 +113,7 @@ final class WooCommerce_Refund_Adapter {
 			return false;
 		}
 
-		$campaign_id = absint( $original_item->get_meta( WooCommerce_Adapter::ITEM_META_CAMPAIGN_ID, true ) );
+		$campaign_id    = absint( $original_item->get_meta( WooCommerce_Adapter::ITEM_META_CAMPAIGN_ID, true ) );
 		$original_amount = trim( (string) $original_item->get_meta( WooCommerce_Adapter::ITEM_META_AMOUNT, true ) );
 		if ( $campaign_id <= 0 && '' === $original_amount ) {
 			return false;
@@ -123,7 +123,7 @@ final class WooCommerce_Refund_Adapter {
 			return new \WP_Error( 'cfwp_woocommerce_refund_incomplete_marker', __( 'A refunded crowdfunding order line is missing its campaign or contribution amount marker.', 'crowdfunding-wordpress' ) );
 		}
 
-		$order_id = method_exists( $order, 'get_id' ) ? (int) $order->get_id() : 0;
+		$order_id     = method_exists( $order, 'get_id' ) ? (int) $order->get_id() : 0;
 		$contribution = $this->contributions->find_by_source( WooCommerce_Adapter::SOURCE, WooCommerce_Adapter::source_reference( $order_id, $original_item_id ) );
 		if ( ! is_array( $contribution ) || empty( $contribution['id'] ) ) {
 			return new \WP_Error( 'cfwp_woocommerce_refund_contribution_not_found', __( 'The original crowdfunding contribution could not be found for this refund.', 'crowdfunding-wordpress' ) );
@@ -157,7 +157,7 @@ final class WooCommerce_Refund_Adapter {
 	 * @param array<int,mixed> $marked_items Crowdfunding order items keyed by item ID.
 	 */
 	private function allocate_full_order_refund( int $order_id, int $refund_id, array $marked_items ): void {
-		foreach ( $marked_items as $item_id => $item ) {
+		foreach ( array_keys( $marked_items ) as $item_id ) {
 			$contribution = $this->contributions->find_by_source( WooCommerce_Adapter::SOURCE, WooCommerce_Adapter::source_reference( $order_id, (int) $item_id ) );
 			if ( ! is_array( $contribution ) || empty( $contribution['id'] ) ) {
 				$this->report_refund_error(
