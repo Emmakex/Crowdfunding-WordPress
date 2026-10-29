@@ -67,6 +67,34 @@ final class Campaign_Moderation {
 	}
 
 	/**
+	 * Determine whether editorial publication is compatible with Core moderation.
+	 *
+	 * Campaigns that have never entered Core moderation retain the existing
+	 * WordPress editorial workflow for backwards compatibility. Once moderation
+	 * metadata exists, publication fails closed unless there is exactly one valid
+	 * Core state and that state is approved.
+	 */
+	public static function is_publication_eligible( int $campaign_id ): bool {
+		$campaign_id = absint( $campaign_id );
+		if ( $campaign_id <= 0 || Campaigns::POST_TYPE !== get_post_type( $campaign_id ) ) {
+			return false;
+		}
+
+		$stored = get_post_meta( $campaign_id, self::META_STATUS, false );
+		if ( empty( $stored ) ) {
+			return true;
+		}
+
+		if ( 1 !== count( $stored ) ) {
+			return false;
+		}
+
+		$raw    = sanitize_key( (string) $stored[0] );
+		$status = self::sanitize_status( $raw );
+		return self::STATUS_APPROVED === $status && $raw === $status;
+	}
+
+	/**
 	 * Initialize or re-enter the moderation lifecycle at submitted.
 	 *
 	 * Absence of moderation metadata means that the campaign has not entered the
