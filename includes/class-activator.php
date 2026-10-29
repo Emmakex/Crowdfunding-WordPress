@@ -20,6 +20,7 @@ final class Activator {
 		Reward_Claims::install();
 		Reward_Fulfillments::install();
 		Campaign_Moderation_Events::install();
+		Notification_Deliveries::install();
 
 		$campaigns = new Campaigns();
 		$campaigns->register_post_type();

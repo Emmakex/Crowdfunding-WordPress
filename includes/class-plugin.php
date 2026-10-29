@@ -68,7 +68,6 @@ final class Plugin {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
-
 		return self::$instance;
 	}
 
@@ -76,7 +75,6 @@ final class Plugin {
 		if ( $this->running ) {
 			return;
 		}
-
 		$this->running = true;
 
 		$this->woocommerce_adapter->register();
@@ -89,6 +87,7 @@ final class Plugin {
 		Notification_Events::register();
 		Notification_Recipient_Resolver::register();
 		Notification_Delivery_Intents::register();
+		Notification_Email_Delivery::register();
 		Campaign_Editing_Policy::register();
 		Campaign_Workflow_Policy::register();
 
@@ -99,6 +98,7 @@ final class Plugin {
 		add_action( 'init', array( Reward_Claims::class, 'maybe_install' ), 5 );
 		add_action( 'init', array( Reward_Fulfillments::class, 'maybe_install' ), 6 );
 		add_action( 'init', array( Campaign_Moderation_Events::class, 'maybe_install' ), 7 );
+		add_action( 'init', array( Notification_Deliveries::class, 'maybe_install' ), 8 );
 		add_action( 'init', array( $this->campaigns, 'register_post_type' ) );
 		add_action( 'init', array( $this->campaigns, 'register_meta' ) );
 		add_action( 'init', array( Campaign_Moderation::class, 'register_meta' ) );
@@ -126,10 +126,6 @@ final class Plugin {
 	}
 
 	public function load_textdomain(): void {
-		load_plugin_textdomain(
-			'crowdfunding-wordpress',
-			false,
-			dirname( plugin_basename( CFWP_PLUGIN_FILE ) ) . '/languages/'
-		);
+		load_plugin_textdomain( 'crowdfunding-wordpress', false, dirname( plugin_basename( CFWP_PLUGIN_FILE ) ) . '/languages/' );
 	}
 }

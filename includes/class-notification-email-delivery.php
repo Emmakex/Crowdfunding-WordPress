@@ -1,0 +1,71 @@
+<?php
+/**
+ * WordPress email notification delivery adapter.
+ *
+ * @package CrowdfundingWordPress
+ */
+
+namespace Kairoseth\CrowdfundingWordPress;
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+final class Notification_Email_Delivery {
+	private static bool $registered = false;
+
+	public static function register(): void {
+		if ( self::$registered ) {
+			return;
+		}
+		self::$registered = true;
+		add_action( 'cfwp_notification_delivery_intent', array( self::class, 'handle_intent' ), 10, 1 );
+	}
+
+	/** @param array<string,mixed> $intent */
+	public static function handle_intent( array $intent ): void {
+		if ( ! apply_filters( 'cfwp_notification_email_delivery_enabled', true, $intent ) ) {
+			return;
+		}
+
+		$intent_key = isset( $intent['intent_key'] ) ? trim( (string) $intent['intent_key'] ) : '';
+		$recipient  = isset( $intent['recipient'] ) && is_array( $intent['recipient'] ) ? $intent['recipient'] : array();
+		$type       = isset( $recipient['type'] ) ? sanitize_key( (string) $recipient['type'] ) : '';
+		$user_id    = isset( $recipient['user_id'] ) ? absint( $recipient['user_id'] ) : 0;
+		if ( '' === $intent_key || Notification_Recipient_Resolver::TYPE_WP_USER !== $type || $user_id <= 0 ) {
+			return;
+		}
+
+		$destination = Notification_Destination_Resolver::email_for_intent( $intent );
+		$message     = Notification_Message_Renderer::render( $intent );
+		if ( '' === $destination || '' === $message['subject'] || '' === $message['body'] ) {
+			return;
+		}
+
+		$repository  = new Notification_Delivery_Repository();
+		$delivery_id = $repository->claim( $intent_key, 'email', $type, $user_id );
+		if ( $delivery_id <= 0 ) {
+			return;
+		}
+
+		$sent  = false;
+		$error = '';
+		try {
+			$sent = (bool) wp_mail( $destination, $message['subject'], $message['body'] );
+			if ( ! $sent ) {
+				$error = 'wp_mail returned false';
+			}
+		} catch ( \Throwable $exception ) {
+			$error = $exception->getMessage();
+		}
+
+		if ( $sent ) {
+			$repository->mark_sent( $delivery_id );
+			do_action( 'cfwp_notification_delivery_succeeded', $delivery_id, $intent_key, 'email', $type, $user_id );
+			return;
+		}
+
+		$repository->mark_failed( $delivery_id, $error );
+		do_action( 'cfwp_notification_delivery_failed', $delivery_id, $intent_key, 'email', $type, $user_id );
+	}
+}
