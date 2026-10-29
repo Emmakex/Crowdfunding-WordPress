@@ -81,6 +81,7 @@ final class Shortcodes {
 		$currency    = (string) get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true );
 		$deadline    = (string) get_post_meta( $campaign->ID, Campaigns::META_DEADLINE, true );
 		$progress    = $this->render_progress( $campaign->ID );
+		$rewards     = $this->render_rewards( $campaign->ID );
 		$content     = (string) apply_filters(
 			'cfwp_campaign_content',
 			wpautop( $campaign->post_content ),
@@ -106,6 +107,8 @@ final class Shortcodes {
 			<div class="cfwp-campaign__content">
 				<?php echo wp_kses_post( $content ); ?>
 			</div>
+
+			<?php echo $rewards; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		</article>
 		<?php
 		return (string) ob_get_clean();
@@ -189,6 +192,10 @@ final class Shortcodes {
 		);
 
 		return do_shortcode( $shortcode );
+	}
+
+	private function render_rewards( int $campaign_id ): string {
+		return do_shortcode( sprintf( '[crowdfunding_rewards id="%d"]', absint( $campaign_id ) ) );
 	}
 
 	private function render_facts( float $goal_amount, string $currency, string $deadline, string $class_name ): string {
