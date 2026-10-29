@@ -26,6 +26,7 @@ final class Legacy_Migration_Inspector {
 		$source_table   = $wpdb->prefix . self::SOURCE_TABLE_SUFFIX;
 		$table_exists   = $this->table_exists( $source_table );
 		$campaign_count = $this->campaign_count();
+		$reward_mapping = Legacy_Migration_Mapping::rewards();
 
 		return array(
 			'source' => array(
@@ -44,8 +45,8 @@ final class Legacy_Migration_Inspector {
 			'compatibility' => array(
 				'campaign_source_detected'     => $campaign_count > 0,
 				'contribution_source_detected' => $table_exists,
-				'reward_mapping_status'        => 'unmapped',
-				'write_enabled'                 => false,
+				'reward_mapping_status'        => (string) $reward_mapping['status'],
+				'write_enabled'                 => Legacy_Migration_Mapping::write_ready(),
 			),
 			'blockers' => $this->blockers( $campaign_count, $table_exists ),
 		);
@@ -174,8 +175,12 @@ final class Legacy_Migration_Inspector {
 		if ( ! $contribution_table_exists ) {
 			$blockers[] = 'source_contribution_table_not_detected';
 		}
-		$blockers[] = 'reward_mapping_not_confirmed';
-		$blockers[] = 'field_mapping_not_confirmed';
+		if ( Legacy_Migration_Mapping::STATUS_CONFIRMED !== Legacy_Migration_Mapping::rewards()['status'] ) {
+			$blockers[] = 'reward_mapping_not_confirmed';
+		}
+		if ( ! Legacy_Migration_Mapping::write_ready() ) {
+			$blockers[] = 'field_mapping_not_confirmed';
+		}
 		return $blockers;
 	}
 }

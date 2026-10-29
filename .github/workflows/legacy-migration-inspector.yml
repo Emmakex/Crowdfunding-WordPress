@@ -3,7 +3,9 @@ name: Legacy Migration Inspector
 on:
   pull_request:
     paths:
+      - 'includes/compat/class-legacy-migration-mapping.php'
       - 'includes/compat/class-legacy-migration-inspector.php'
+      - 'includes/compat/class-legacy-migration-plan.php'
       - 'includes/compat/class-legacy-migration-admin.php'
       - 'includes/class-plugin.php'
       - 'crowdfunding-wordpress.php'
@@ -21,7 +23,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mapping='includes/compat/class-legacy-migration-mapping.php'
           inspector='includes/compat/class-legacy-migration-inspector.php'
+          plan='includes/compat/class-legacy-migration-plan.php'
           admin='includes/compat/class-legacy-migration-admin.php'
           bootstrap='crowdfunding-wordpress.php'
           plugin='includes/class-plugin.php'
@@ -29,16 +33,17 @@ jobs:
           grep -Fq "final class Legacy_Migration_Inspector" "$inspector"
           grep -Fq "SOURCE_POST_TYPE = 'fr' . '_project'" "$inspector"
           grep -Fq "SOURCE_TABLE_SUFFIX = 'fr' . '_cf_contributions'" "$inspector"
-          grep -Fq "'write_enabled'                 => false" "$inspector"
+          grep -Fq "'write_enabled'                 => Legacy_Migration_Mapping::write_ready()" "$inspector"
           grep -Fq "SHOW COLUMNS FROM" "$inspector"
           grep -Fq "final class Legacy_Migration_Admin" "$admin"
           grep -Fq "current_user_can( 'manage_options' )" "$admin"
           grep -Fq "includes/compat/class-legacy-migration-inspector.php" "$bootstrap"
+          grep -Fq "includes/compat/class-legacy-migration-plan.php" "$bootstrap"
           grep -Fq "includes/compat/class-legacy-migration-admin.php" "$bootstrap"
           grep -Fq "Compat\\Legacy_Migration_Admin" "$plugin"
 
-          if grep -Eiq 'wp_insert_post|wp_update_post|update_post_meta|add_post_meta|delete_post_meta|\$wpdb->(insert|update|delete|replace)|dbDelta|set_transient|update_option|add_option|delete_option' "$inspector" "$admin"; then
-            echo 'Migration inspection must remain read-only.' >&2
+          if grep -Eiq 'wp_insert_post|wp_update_post|update_post_meta|add_post_meta|delete_post_meta|\$wpdb->(insert|update|delete|replace)|dbDelta|set_transient|update_option|add_option|delete_option' "$mapping" "$inspector" "$plan" "$admin"; then
+            echo 'Migration inspection and preview must remain read-only.' >&2
             exit 1
           fi
 
@@ -47,7 +52,9 @@ jobs:
             exit 1
           fi
 
+          php -l "$mapping"
           php -l "$inspector"
+          php -l "$plan"
           php -l "$admin"
           php -l "$plugin"
           php -l "$bootstrap"

@@ -15,9 +15,11 @@ final class Legacy_Migration_Admin {
 	private const PAGE_SLUG = 'cfwp-legacy-migration';
 
 	private Legacy_Migration_Inspector $inspector;
+	private Legacy_Migration_Plan $plan;
 
 	public function __construct() {
 		$this->inspector = new Legacy_Migration_Inspector();
+		$this->plan      = new Legacy_Migration_Plan();
 	}
 
 	public function register(): void {
@@ -41,14 +43,17 @@ final class Legacy_Migration_Admin {
 		}
 
 		$report   = $this->inspector->inspect();
+		$preview  = $this->plan->preview();
 		$source   = isset( $report['source'] ) && is_array( $report['source'] ) ? $report['source'] : array();
 		$target   = isset( $report['target'] ) && is_array( $report['target'] ) ? $report['target'] : array();
 		$compat   = isset( $report['compatibility'] ) && is_array( $report['compatibility'] ) ? $report['compatibility'] : array();
 		$blockers = isset( $report['blockers'] ) && is_array( $report['blockers'] ) ? $report['blockers'] : array();
+		$summary  = isset( $preview['summary'] ) && is_array( $preview['summary'] ) ? $preview['summary'] : array();
+		$items    = isset( $preview['items'] ) && is_array( $preview['items'] ) ? $preview['items'] : array();
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Crowdfunding migration inspection', 'crowdfunding-wordpress' ); ?></h1>
-			<p><?php esc_html_e( 'This is a read-only dry run for the legacy Cultural Funding installation. It inventories source data and does not create, update or delete crowdfunding data.', 'crowdfunding-wordpress' ); ?></p>
+			<p><?php esc_html_e( 'This is a read-only dry run for the legacy Cultural Funding installation. It inventories source data, previews campaign-by-campaign compatibility and does not create, update or delete crowdfunding data.', 'crowdfunding-wordpress' ); ?></p>
 
 			<h2><?php esc_html_e( 'Source inventory', 'crowdfunding-wordpress' ); ?></h2>
 			<table class="widefat striped" style="max-width: 900px;">
@@ -61,6 +66,16 @@ final class Legacy_Migration_Admin {
 					<tr><th><?php esc_html_e( 'Migration writes enabled', 'crowdfunding-wordpress' ); ?></th><td><strong><?php echo ! empty( $compat['write_enabled'] ) ? esc_html__( 'Yes', 'crowdfunding-wordpress' ) : esc_html__( 'No', 'crowdfunding-wordpress' ); ?></strong></td></tr>
 				</tbody>
 			</table>
+
+			<h2><?php esc_html_e( 'Campaign migration preview', 'crowdfunding-wordpress' ); ?></h2>
+			<p>
+				<strong><?php esc_html_e( 'Migratable:', 'crowdfunding-wordpress' ); ?></strong> <?php echo esc_html( (string) (int) ( $summary[ Legacy_Migration_Plan::STATUS_MIGRATABLE ] ?? 0 ) ); ?>
+				&nbsp; | &nbsp;
+				<strong><?php esc_html_e( 'Blocked:', 'crowdfunding-wordpress' ); ?></strong> <?php echo esc_html( (string) (int) ( $summary[ Legacy_Migration_Plan::STATUS_BLOCKED ] ?? 0 ) ); ?>
+				&nbsp; | &nbsp;
+				<strong><?php esc_html_e( 'Conflicts:', 'crowdfunding-wordpress' ); ?></strong> <?php echo esc_html( (string) (int) ( $summary[ Legacy_Migration_Plan::STATUS_CONFLICT ] ?? 0 ) ); ?>
+			</p>
+			<?php $this->render_plan( $items ); ?>
 
 			<h2><?php esc_html_e( 'Legacy campaign statuses', 'crowdfunding-wordpress' ); ?></h2>
 			<?php $this->render_key_value_table( isset( $source['campaign_statuses'] ) && is_array( $source['campaign_statuses'] ) ? $source['campaign_statuses'] : array() ); ?>
@@ -85,6 +100,40 @@ final class Legacy_Migration_Admin {
 		<?php
 	}
 
+	/** @param array<int,array<string,mixed>> $items */
+	private function render_plan( array $items ): void {
+		if ( empty( $items ) ) {
+			echo '<p>' . esc_html__( 'No legacy campaigns detected in the preview window.', 'crowdfunding-wordpress' ) . '</p>';
+			return;
+		}
+		?>
+		<table class="widefat striped" style="max-width: 1200px;">
+			<thead><tr>
+				<th><?php esc_html_e( 'Source ID', 'crowdfunding-wordpress' ); ?></th>
+				<th><?php esc_html_e( 'Campaign', 'crowdfunding-wordpress' ); ?></th>
+				<th><?php esc_html_e( 'Status', 'crowdfunding-wordpress' ); ?></th>
+				<th><?php esc_html_e( 'Target slug', 'crowdfunding-wordpress' ); ?></th>
+				<th><?php esc_html_e( 'Result', 'crowdfunding-wordpress' ); ?></th>
+				<th><?php esc_html_e( 'Blockers / conflicts', 'crowdfunding-wordpress' ); ?></th>
+				<th><?php esc_html_e( 'Preserved fields', 'crowdfunding-wordpress' ); ?></th>
+			</tr></thead>
+			<tbody>
+			<?php foreach ( $items as $item ) : ?>
+				<tr>
+					<td><?php echo esc_html( (string) (int) ( $item['source_id'] ?? 0 ) ); ?></td>
+					<td><?php echo esc_html( (string) ( $item['title'] ?? '' ) ); ?></td>
+					<td><code><?php echo esc_html( (string) ( $item['source_status'] ?? '' ) ); ?></code> → <code><?php echo esc_html( (string) ( $item['target_status'] ?? '' ) ); ?></code></td>
+					<td><code><?php echo esc_html( (string) ( $item['target_slug'] ?? '' ) ); ?></code></td>
+					<td><strong><?php echo esc_html( (string) ( $item['status'] ?? Legacy_Migration_Plan::STATUS_BLOCKED ) ); ?></strong></td>
+					<td><?php $this->render_code_list( isset( $item['blockers'] ) && is_array( $item['blockers'] ) ? $item['blockers'] : array() ); ?></td>
+					<td><?php $this->render_code_list( isset( $item['preserved'] ) && is_array( $item['preserved'] ) ? $item['preserved'] : array() ); ?></td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+		<?php
+	}
+
 	/** @param array<string,int> $items */
 	private function render_key_value_table( array $items ): void {
 		if ( empty( $items ) ) {
@@ -103,14 +152,12 @@ final class Legacy_Migration_Admin {
 	/** @param array<int,string> $items */
 	private function render_code_list( array $items ): void {
 		if ( empty( $items ) ) {
-			echo '<p>' . esc_html__( 'None detected.', 'crowdfunding-wordpress' ) . '</p>';
+			echo '<span aria-hidden="true">—</span><span class="screen-reader-text">' . esc_html__( 'None', 'crowdfunding-wordpress' ) . '</span>';
 			return;
 		}
-		echo '<p>';
 		foreach ( $items as $item ) {
 			echo '<code style="margin-right:8px;">' . esc_html( (string) $item ) . '</code>';
 		}
-		echo '</p>';
 	}
 
 	/** @param array<int,array{key:string,count:int}> $items */
