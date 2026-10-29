@@ -87,6 +87,7 @@ final class Plugin {
 		$this->reward_fulfillment_backfill_reconciler->register();
 		$this->campaign_moderation_backfill_reconciler->register();
 		Notification_Events::register();
+		Notification_Recipient_Resolver::register();
 		Campaign_Editing_Policy::register();
 		Campaign_Workflow_Policy::register();
 
