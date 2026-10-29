@@ -12,10 +12,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Campaign_Progress {
-	private Contribution_Repository $contributions;
+	private Contribution_Adjustment_Repository $adjustments;
 
 	public function __construct() {
-		$this->contributions = new Contribution_Repository();
+		$this->adjustments = new Contribution_Adjustment_Repository();
 	}
 
 	public function register(): void {
@@ -48,7 +48,7 @@ final class Campaign_Progress {
 
 		$goal     = self::normalize_decimal( get_post_meta( $campaign_id, Campaigns::META_GOAL_AMOUNT, true ) );
 		$currency = Campaigns::sanitize_currency( get_post_meta( $campaign_id, Campaigns::META_CURRENCY, true ) );
-		$raised   = self::normalize_decimal( $this->contributions->confirmed_total_for_campaign( $campaign_id ) );
+		$raised   = self::normalize_decimal( $this->adjustments->net_confirmed_total_for_campaign( $campaign_id ) );
 
 		if ( '' === $goal || self::decimal_is_zero( $goal ) || '' === $currency ) {
 			return '';
