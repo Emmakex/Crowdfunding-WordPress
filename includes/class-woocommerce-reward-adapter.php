@@ -15,13 +15,17 @@ final class WooCommerce_Reward_Adapter {
 	public const SOURCE = 'woocommerce_reward';
 
 	private Reward_Claim_Repository $claims;
+	private Reward_Entitlement_Reconciler $reconciler;
 
 	public function __construct() {
-		$this->claims = new Reward_Claim_Repository();
+		$this->claims     = new Reward_Claim_Repository();
+		$this->reconciler = new Reward_Entitlement_Reconciler();
 	}
 
 	public function register(): void {
 		add_action( 'cfwp_woocommerce_contribution_synced', array( $this, 'sync_claim' ), 10, 4 );
+		add_action( 'cfwp_contribution_adjustment_created', array( $this, 'handle_adjustment_created' ), 10, 4 );
+		add_action( 'cfwp_contribution_adjustment_reversed', array( $this, 'handle_adjustment_reversed' ), 10, 4 );
 	}
 
 	public function sync_claim( int $contribution_id, int $order_id, int $item_id, string $core_status ): void {
@@ -49,16 +53,13 @@ final class WooCommerce_Reward_Adapter {
 
 		if ( Contributions::STATUS_CONFIRMED === $core_status ) {
 			if ( is_array( $existing ) && Reward_Claims::STATUS_REVERSED === (string) $existing['status'] ) {
-				$this->report_sync_error(
-					new \WP_Error(
-						'cfwp_woocommerce_reward_claim_reversed',
-						__( 'This WooCommerce reward claim was already reversed and cannot be silently reactivated.', 'crowdfunding-wordpress' )
-					),
-					$contribution_id,
-					$order_id,
-					$item_id,
-					$reward_id
-				);
+				$reactivated = $this->claims->reactivate( (int) $existing['id'] );
+				if ( is_wp_error( $reactivated ) ) {
+					$this->report_sync_error( $reactivated, $contribution_id, $order_id, $item_id, $reward_id );
+					return;
+				}
+
+				do_action( 'cfwp_woocommerce_reward_claim_synced', (int) $existing['id'], $contribution_id, $order_id, $item_id, $reward_id, Reward_Claims::STATUS_ACTIVE );
 				return;
 			}
 
@@ -95,6 +96,22 @@ final class WooCommerce_Reward_Adapter {
 		}
 
 		do_action( 'cfwp_woocommerce_reward_claim_synced', (int) $existing['id'], $contribution_id, $order_id, $item_id, $reward_id, Reward_Claims::STATUS_REVERSED );
+	}
+
+	/**
+	 * @param array<string,mixed> $data Original adjustment payload.
+	 */
+	public function handle_adjustment_created( int $adjustment_id, int $contribution_id, string $type, array $data ): void {
+		unset( $adjustment_id, $data );
+		if ( Contribution_Adjustments::TYPE_REFUND !== $type ) {
+			return;
+		}
+		$this->reconciler->reconcile_contribution( $contribution_id, false, self::SOURCE );
+	}
+
+	public function handle_adjustment_reversed( int $adjustment_id, int $contribution_id, string $source, string $source_reference ): void {
+		unset( $adjustment_id, $source, $source_reference );
+		$this->reconciler->reconcile_contribution( $contribution_id, true, self::SOURCE );
 	}
 
 	public static function source_reference( int $order_id, int $item_id, int $reward_id ): string {
