@@ -22,20 +22,22 @@ final class Plugin {
 	private Promoter_Registration $promoter_registration;
 	private Campaign_Progress $campaign_progress;
 	private WooCommerce_Adapter $woocommerce_adapter;
+	private WooCommerce_Refund_Adapter $woocommerce_refund_adapter;
 	private Contribution_Checkout $contribution_checkout;
 	private bool $running = false;
 
 	private function __construct() {
-		$this->campaigns             = new Campaigns();
-		$this->campaign_admin        = new Campaign_Admin();
-		$this->shortcodes            = new Shortcodes();
-		$this->campaign_submission   = new Campaign_Submission();
-		$this->campaign_editor       = new Campaign_Editor();
-		$this->promoter_dashboard    = new Promoter_Dashboard();
-		$this->promoter_registration = new Promoter_Registration();
-		$this->campaign_progress     = new Campaign_Progress();
-		$this->woocommerce_adapter   = new WooCommerce_Adapter();
-		$this->contribution_checkout = new Contribution_Checkout();
+		$this->campaigns                  = new Campaigns();
+		$this->campaign_admin             = new Campaign_Admin();
+		$this->shortcodes                 = new Shortcodes();
+		$this->campaign_submission        = new Campaign_Submission();
+		$this->campaign_editor            = new Campaign_Editor();
+		$this->promoter_dashboard         = new Promoter_Dashboard();
+		$this->promoter_registration      = new Promoter_Registration();
+		$this->campaign_progress          = new Campaign_Progress();
+		$this->woocommerce_adapter        = new WooCommerce_Adapter();
+		$this->woocommerce_refund_adapter = new WooCommerce_Refund_Adapter();
+		$this->contribution_checkout      = new Contribution_Checkout();
 	}
 
 	public static function instance(): Plugin {
@@ -54,10 +56,12 @@ final class Plugin {
 		$this->running = true;
 
 		$this->woocommerce_adapter->register();
+		$this->woocommerce_refund_adapter->register();
 		$this->contribution_checkout->register();
 
 		add_action( 'init', array( Promoters::class, 'maybe_install' ), 1 );
 		add_action( 'init', array( Contributions::class, 'maybe_install' ), 2 );
+		add_action( 'init', array( Contribution_Adjustments::class, 'maybe_install' ), 3 );
 		add_action( 'init', array( $this->campaigns, 'register_post_type' ) );
 		add_action( 'init', array( $this->campaigns, 'register_meta' ) );
 		add_action( 'init', array( $this, 'load_textdomain' ), 1 );

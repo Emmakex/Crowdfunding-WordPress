@@ -15,6 +15,7 @@ final class Activator {
 	public static function activate(): void {
 		Promoters::install();
 		Contributions::install();
+		Contribution_Adjustments::install();
 
 		$campaigns = new Campaigns();
 		$campaigns->register_post_type();

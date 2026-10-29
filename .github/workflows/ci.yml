@@ -230,15 +230,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify public progress comes only from confirmed ledger totals
+      - name: Verify public progress consumes net confirmed Core totals
         shell: bash
         run: |
           set -euo pipefail
           file='includes/class-campaign-progress.php'
           views='includes/class-shortcodes.php'
-          repo='includes/class-contribution-repository.php'
+          repo='includes/class-contribution-adjustment-repository.php'
           grep -Fq "add_shortcode( 'crowdfunding_progress'" "$file"
-          grep -Fq "confirmed_total_for_campaign( \$campaign_id )" "$file"
+          grep -Fq "net_confirmed_total_for_campaign( \$campaign_id )" "$file"
           grep -Fq "Campaigns::META_GOAL_AMOUNT" "$file"
           grep -Fq "Campaigns::META_CURRENCY" "$file"
           grep -Fq "min( 100.0, \$percentage )" "$file"
@@ -247,9 +247,45 @@ jobs:
           grep -Fq "render_progress( \$campaign->ID, true )" "$views"
           grep -Fq "render_progress( \$campaign->ID )" "$views"
           grep -Fq "str_contains( \$content, 'class=\"cfwp-progress' )" "$views"
-          grep -Fq "WHERE campaign_id = %d AND status = %s" "$repo"
-          grep -Fq "Contributions::STATUS_CONFIRMED" "$repo"
+          grep -Fq "c.status = %s" "$repo"
+          grep -Fq "Contribution_Adjustments::STATUS_APPLIED" "$repo"
           if grep -Ei '\$wpdb|woocommerce|\bwc_|STATUS_PENDING|STATUS_CANCELLED|STATUS_REFUNDED' "$file"; then
-            echo 'Public progress must consume the generic confirmed-total repository authority only.'
+            echo 'Public progress must consume the generic net-confirmed repository authority only.'
+            exit 1
+          fi
+
+  refund-integrity-contract:
+    name: Refund adjustment integrity contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify refunds remain immutable, attributable and idempotent
+        shell: bash
+        run: |
+          set -euo pipefail
+          domain='includes/class-contribution-adjustments.php'
+          repo='includes/class-contribution-adjustment-repository.php'
+          adapter='includes/class-woocommerce-refund-adapter.php'
+          grep -Fq "return \$wpdb->prefix . 'cfwp_contribution_adjustments';" "$domain"
+          grep -Fq "UNIQUE KEY source_reference (source,source_reference)" "$domain"
+          grep -Fq "public const TYPE_REFUND = 'refund';" "$domain"
+          grep -Fq "public const STATUS_APPLIED  = 'applied';" "$domain"
+          grep -Fq "public const STATUS_REVERSED = 'reversed';" "$domain"
+          grep -Fq "remaining_refundable_for_contribution" "$repo"
+          grep -Fq "net_confirmed_total_for_campaign" "$repo"
+          grep -Fq "reverse_by_source_prefix" "$repo"
+          grep -Fq "cfwp_refund_exceeds_contribution" "$repo"
+          grep -Fq "woocommerce_order_refunded" "$adapter"
+          grep -Fq "woocommerce_delete_order_refund" "$adapter"
+          grep -Fq "'_refunded_item_id'" "$adapter"
+          grep -Fq "refund:%d:item:%d" "$adapter"
+          grep -Fq "cfwp_woocommerce_refund_unallocated" "$adapter"
+          grep -Fq "'refunded' === \$status" "$adapter"
+          if grep -Ei 'woocommerce|\bwc_' "$domain" "$repo"; then
+            echo 'The generic adjustment ledger must remain independent from WooCommerce.'
+            exit 1
+          fi
+          if grep -Ei '\$wpdb|get_post_meta\(|wp_posts|wp_postmeta|shop_order' "$adapter"; then
+            echo 'WooCommerce refund synchronization must use CRUD objects and generic repositories only.'
             exit 1
           fi
