@@ -17,6 +17,7 @@ final class Activator {
 		Contributions::install();
 		Contribution_Adjustments::install();
 		Rewards::install();
+		Reward_Claims::install();
 
 		$campaigns = new Campaigns();
 		$campaigns->register_post_type();
