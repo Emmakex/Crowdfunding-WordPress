@@ -73,20 +73,20 @@ final class Promoters {
 	 */
 	public static function promoter_capabilities(): array {
 		return array(
-			'read'                            => true,
-			'upload_files'                    => true,
-			'edit_cfwp_campaigns'             => true,
-			'delete_cfwp_campaigns'           => true,
-			'manage_cfwp_fulfillments'        => true,
-			'moderate_cfwp_campaigns'         => false,
-			'publish_cfwp_campaigns'          => false,
-			'edit_others_cfwp_campaigns'      => false,
-			'delete_others_cfwp_campaigns'    => false,
-			'read_private_cfwp_campaigns'     => false,
-			'edit_private_cfwp_campaigns'     => false,
-			'delete_private_cfwp_campaigns'   => false,
-			'edit_published_cfwp_campaigns'   => false,
-			'delete_published_cfwp_campaigns' => false,
+			'read'                           => true,
+			'upload_files'                   => true,
+			'edit_cfwp_campaigns'            => true,
+			'delete_cfwp_campaigns'          => true,
+			'manage_cfwp_fulfillments'       => true,
+			'moderate_cfwp_campaigns'        => false,
+			'publish_cfwp_campaigns'         => false,
+			'edit_others_cfwp_campaigns'     => false,
+			'delete_others_cfwp_campaigns'   => false,
+			'read_private_cfwp_campaigns'    => false,
+			'edit_private_cfwp_campaigns'    => false,
+			'delete_private_cfwp_campaigns'  => false,
+			'edit_published_cfwp_campaigns'  => false,
+			'delete_published_cfwp_campaigns'=> false,
 		);
 	}
 
