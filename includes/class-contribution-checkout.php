@@ -106,8 +106,8 @@ final class Contribution_Checkout {
 						<option value="0"><?php esc_html_e( 'No reward', 'crowdfunding-wordpress' ); ?></option>
 						<?php foreach ( $rewards as $reward ) : ?>
 							<?php
-							$reward_id = isset( $reward['id'] ) ? absint( $reward['id'] ) : 0;
-							$remaining = $reward_id > 0 ? $this->claims->remaining_for_reward( $reward_id ) : 0;
+							$reward_id      = isset( $reward['id'] ) ? absint( $reward['id'] ) : 0;
+							$remaining      = $reward_id > 0 ? $this->claims->remaining_for_reward( $reward_id ) : 0;
 							$minimum_reward = Reward_Repository::normalize_amount( $reward['minimum_amount'] ?? '' );
 							if ( $reward_id <= 0 || '' === $minimum_reward ) {
 								continue;
@@ -121,6 +121,11 @@ final class Contribution_Checkout {
 							);
 							if ( 0 === $remaining ) {
 								$option_label .= ' — ' . __( 'Unavailable', 'crowdfunding-wordpress' );
+							} elseif ( null !== $remaining ) {
+								$option_label .= ' — ' . sprintf(
+									_n( '%d reward available', '%d rewards available', $remaining, 'crowdfunding-wordpress' ),
+									$remaining
+								);
 							}
 							?>
 							<option value="<?php echo esc_attr( (string) $reward_id ); ?>" <?php disabled( 0 === $remaining ); ?>><?php echo esc_html( $option_label ); ?></option>
@@ -466,7 +471,7 @@ final class Contribution_Checkout {
 			}
 		}
 
-		if ( ! class_exists( '\\WC_Product_Simple' ) ) {
+		if ( ! class_exists( '\WC_Product_Simple' ) ) {
 			return 0;
 		}
 

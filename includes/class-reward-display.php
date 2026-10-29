@@ -13,9 +13,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class Reward_Display {
 	private Reward_Repository $rewards;
+	private Reward_Claim_Repository $claims;
 
 	public function __construct() {
 		$this->rewards = new Reward_Repository();
+		$this->claims  = new Reward_Claim_Repository();
 	}
 
 	public function register(): void {
@@ -109,6 +111,7 @@ final class Reward_Display {
 		}
 
 		$minimum_label = self::format_money( $minimum, $currency );
+		$remaining     = $this->claims->remaining_for_reward( $reward_id );
 
 		ob_start();
 		?>
@@ -126,6 +129,16 @@ final class Reward_Display {
 			<?php if ( $claim_limit > 0 ) : ?>
 				<p class="cfwp-reward-card__limit">
 					<?php echo esc_html( sprintf( _n( 'Limited to %d reward.', 'Limited to %d rewards.', $claim_limit, 'crowdfunding-wordpress' ), $claim_limit ) ); ?>
+				</p>
+			<?php endif; ?>
+
+			<?php if ( null !== $remaining ) : ?>
+				<p class="cfwp-reward-card__availability" aria-live="polite">
+					<?php if ( 0 === $remaining ) : ?>
+						<?php esc_html_e( 'Reward unavailable.', 'crowdfunding-wordpress' ); ?>
+					<?php else : ?>
+						<?php echo esc_html( sprintf( _n( '%d reward available.', '%d rewards available.', $remaining, 'crowdfunding-wordpress' ), $remaining ) ); ?>
+					<?php endif; ?>
 				</p>
 			<?php endif; ?>
 		</article>

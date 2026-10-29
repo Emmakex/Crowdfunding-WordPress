@@ -1,0 +1,55 @@
+name: Reward Availability
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  reward-availability-contract:
+    name: Reward availability authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public and checkout availability derive only from active Core claims
+        shell: bash
+        run: |
+          set -euo pipefail
+          display='includes/class-reward-display.php'
+          checkout='includes/class-contribution-checkout.php'
+          claims='includes/class-reward-claim-repository.php'
+          rewards='includes/class-rewards.php'
+
+          grep -Fq 'public function remaining_for_reward' "$claims"
+          grep -Fq 'active_count_for_reward' "$claims"
+          grep -Fq 'claim_limit - $this->active_count_for_reward' "$claims"
+          grep -Fq 'Reward_Claims::STATUS_ACTIVE' "$claims"
+
+          grep -Fq 'private Reward_Claim_Repository $claims;' "$display"
+          grep -Fq '$this->claims->remaining_for_reward( $reward_id )' "$display"
+          grep -Fq "'%d reward available.'" "$display"
+          grep -Fq "'Reward unavailable.'" "$display"
+          grep -Fq 'null !== $remaining' "$display"
+
+          grep -Fq '$this->claims->remaining_for_reward( $reward_id )' "$checkout"
+          grep -Fq "'%d reward available'" "$checkout"
+          grep -Fq "'Unavailable'" "$checkout"
+          grep -Fq 'disabled( 0 === $remaining )' "$checkout"
+
+          if grep -Ei 'stock_remaining|remaining_stock|reward_stock|available_count[[:space:]]+(int|bigint|decimal)|claimed_count[[:space:]]+(int|bigint|decimal)' "$display" "$checkout" "$claims" "$rewards"; then
+            echo 'Reward availability must remain derived and must not introduce mutable stock/count fields.'
+            exit 1
+          fi
+
+          if grep -Ei '\$wpdb|->(query|get_var|get_row|get_results|prepare)\(' "$display" "$checkout"; then
+            echo 'Public and checkout availability surfaces must consume repositories rather than query persistence directly.'
+            exit 1
+          fi
+
+          if grep -Ei 'user_email|display_name|user_login|billing_|shipping_|customer_' "$display"; then
+            echo 'Public reward availability must not expose supporter identity or customer PII.'
+            exit 1
+          fi

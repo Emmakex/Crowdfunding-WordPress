@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.4.5
+Stable tag: 0.4.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,8 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Authenticated frontend reward management and public reward cards.
 * Versioned reward-claims ledger with active/reversed states and source/reference idempotency.
 * Finite reward limits derived from active claims instead of mutable stock counters.
+* Public finite reward availability derived from active claims.
+* Finite availability shown on public reward cards and in the contribution selector.
 * Optional reward selection in the WooCommerce-backed contribution form.
 * Classic-cart and Store API / Checkout Blocks reward validation.
 * Explicit `_cfwp_reward_id` order-item marker for selected rewards.
@@ -68,9 +70,9 @@ An applied refund can never exceed the contribution amount still available to re
 
 Rewards are generic Core records, not WooCommerce products. They belong to exactly one crowdfunding campaign and have a stable ID, title, description, minimum contribution amount, optional claim limit, enabled state and explicit sort order.
 
-A reward inherits the campaign currency. `claim_limit = 0` means unlimited. The configured limit is definition authority; actual usage is derived from active reward claims, not a mutable stock field.
+A reward inherits the campaign currency. `claim_limit = 0` means unlimited. The configured limit is definition authority; actual usage and remaining finite capacity are derived from active reward claims, not a mutable stock field.
 
-`[crowdfunding_manage_rewards]` allows authenticated promoters to create, edit, sort and activate/deactivate rewards only on their own `draft` or `pending` campaigns. `[crowdfunding_rewards]` renders enabled rewards for published campaigns.
+`[crowdfunding_manage_rewards]` allows authenticated promoters to create, edit, sort and activate/deactivate rewards only on their own `draft` or `pending` campaigns. `[crowdfunding_rewards]` renders enabled rewards for published campaigns and shows the derived remaining count for finite rewards. Unlimited rewards do not expose a numeric availability counter.
 
 == Reward claims ==
 
@@ -80,9 +82,17 @@ A new claim requires an enabled reward and a `confirmed` contribution from the s
 
 Claim reversal preserves history; claims are never deleted as part of their normal lifecycle. Version 0.4.5 also permits controlled reactivation of the same historical claim. Reactivation locks the reward row, revalidates confirmed status, campaign, currency, enabled state, net minimum and finite capacity, then returns the existing claim to `active` rather than creating a new claim row.
 
+== Reward availability ==
+
+Version 0.4.6 makes finite reward availability visible without introducing a second stock authority. Public reward cards and the contribution selector both call `Reward_Claim_Repository::remaining_for_reward()`.
+
+Finite rewards show their current derived remaining count. Zero means unavailable and disables selection in the contribution form. Unlimited rewards return `null`, remain selectable and do not show a numeric availability count.
+
+No availability value is stored on the reward definition or copied into WooCommerce. Reversing or reactivating claims therefore changes visible capacity automatically on the next render.
+
 == Reward selection and WooCommerce bridge ==
 
-`[crowdfunding_contribute]` can include an optional reward selection. Only enabled rewards for the current campaign are offered. Finite rewards with zero remaining capacity are disabled in the selector.
+`[crowdfunding_contribute]` can include an optional reward selection. Only enabled rewards for the current campaign are offered. Finite rewards show their derived current availability and zero-capacity rewards are disabled in the selector.
 
 Reward selection is not a reservation. The server revalidates reward ownership, enabled state, minimum contribution and current finite capacity when the contribution enters the cart and again during both classic WooCommerce cart validation and Store API / Checkout Blocks validation.
 
@@ -132,10 +142,10 @@ Displays one published campaign, including its enabled reward definitions. Optio
 Displays the authoritative net confirmed raised amount, goal, percentage and progress bar. Optional `id` and `compact="yes"`.
 
 = [crowdfunding_rewards] =
-Displays enabled reward definitions for one published campaign. Optional `id` selects the campaign.
+Displays enabled reward definitions for one published campaign, including derived remaining availability for finite rewards. Optional `id` selects the campaign.
 
 = [crowdfunding_contribute] =
-Displays the WooCommerce-backed contribution form for a published, open campaign. Optional `id` selects the campaign. Enabled rewards can be selected optionally and are revalidated server-side.
+Displays the WooCommerce-backed contribution form for a published, open campaign. Optional `id` selects the campaign. Enabled rewards can be selected optionally; finite rewards show their current derived availability and are revalidated server-side.
 
 = [crowdfunding_promoter_register] =
 Displays promoter registration when WordPress user registration is enabled.
@@ -162,6 +172,10 @@ No. Reward definitions and claims belong to the generic crowdfunding Core. WooCo
 
 No. Selection is validated before checkout but is not a reservation. The authoritative claim is created only when the Core contribution becomes confirmed.
 
+= Where does the public availability number come from? =
+
+For finite rewards it is derived at render time as `claim_limit - active claims` through `Reward_Claim_Repository::remaining_for_reward()`. It is not stored as stock on the reward or in WooCommerce.
+
 = What happens if the last reward is claimed while another supporter is paying? =
 
 The Core claim insert enforces the finite limit transactionally. If no capacity remains at confirmation time, claim creation fails closed and emits a synchronization error rather than creating an invalid entitlement.
@@ -187,6 +201,13 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.4.6 =
+* Added public finite reward availability derived exclusively from active Core claims.
+* Added remaining-count output to public reward cards for finite rewards.
+* Added remaining-count output to the contribution reward selector.
+* Unlimited rewards remain counter-free and zero-capacity finite rewards remain unavailable.
+* Kept `claim_limit` as configuration and avoided mutable stock or duplicated availability fields.
 
 = 0.4.5 =
 * Added net-per-contribution reward eligibility using applied refund adjustments.
