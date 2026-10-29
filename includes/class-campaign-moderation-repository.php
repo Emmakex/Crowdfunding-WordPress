@@ -130,6 +130,7 @@ final class Campaign_Moderation_Repository {
 				: new \WP_Error( 'cfwp_moderation_decision_event_failed', __( 'The moderation decision audit event could not be recorded.', 'crowdfunding-wordpress' ) );
 		}
 
+		$event_id = (int) $wpdb->insert_id;
 		if ( false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			clean_post_cache( $campaign_id );
@@ -137,7 +138,6 @@ final class Campaign_Moderation_Repository {
 		}
 
 		clean_post_cache( $campaign_id );
-		$event_id = (int) $wpdb->insert_id;
 		do_action( 'cfwp_campaign_moderation_status_changed', $campaign_id, $from_status, $to_status, $source );
 		do_action( 'cfwp_campaign_moderation_decision_recorded', $event_id, $campaign_id, $actor_user_id, $from_status, $to_status, $source, $source_reference );
 		return true;
