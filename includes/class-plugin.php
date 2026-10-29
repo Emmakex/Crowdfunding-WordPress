@@ -20,6 +20,7 @@ final class Plugin {
 	private Campaign_Editor $campaign_editor;
 	private Reward_Manager $reward_manager;
 	private Reward_Display $reward_display;
+	private Reward_Fulfillment_Manager $reward_fulfillment_manager;
 	private Promoter_Dashboard $promoter_dashboard;
 	private Promoter_Registration $promoter_registration;
 	private Campaign_Progress $campaign_progress;
@@ -32,22 +33,23 @@ final class Plugin {
 	private bool $running = false;
 
 	private function __construct() {
-		$this->campaigns                            = new Campaigns();
-		$this->campaign_admin                       = new Campaign_Admin();
-		$this->shortcodes                           = new Shortcodes();
-		$this->campaign_submission                  = new Campaign_Submission();
-		$this->campaign_editor                      = new Campaign_Editor();
-		$this->reward_manager                       = new Reward_Manager();
-		$this->reward_display                       = new Reward_Display();
-		$this->promoter_dashboard                   = new Promoter_Dashboard();
-		$this->promoter_registration                = new Promoter_Registration();
-		$this->campaign_progress                    = new Campaign_Progress();
-		$this->reward_fulfillment_lifecycle_bridge  = new Reward_Fulfillment_Lifecycle_Bridge();
+		$this->campaigns                              = new Campaigns();
+		$this->campaign_admin                         = new Campaign_Admin();
+		$this->shortcodes                             = new Shortcodes();
+		$this->campaign_submission                    = new Campaign_Submission();
+		$this->campaign_editor                        = new Campaign_Editor();
+		$this->reward_manager                         = new Reward_Manager();
+		$this->reward_display                         = new Reward_Display();
+		$this->reward_fulfillment_manager             = new Reward_Fulfillment_Manager();
+		$this->promoter_dashboard                     = new Promoter_Dashboard();
+		$this->promoter_registration                  = new Promoter_Registration();
+		$this->campaign_progress                      = new Campaign_Progress();
+		$this->reward_fulfillment_lifecycle_bridge    = new Reward_Fulfillment_Lifecycle_Bridge();
 		$this->reward_fulfillment_backfill_reconciler = new Reward_Fulfillment_Backfill_Reconciler();
-		$this->woocommerce_adapter                  = new WooCommerce_Adapter();
-		$this->woocommerce_refund_adapter           = new WooCommerce_Refund_Adapter();
-		$this->woocommerce_reward_adapter           = new WooCommerce_Reward_Adapter();
-		$this->contribution_checkout                = new Contribution_Checkout();
+		$this->woocommerce_adapter                    = new WooCommerce_Adapter();
+		$this->woocommerce_refund_adapter             = new WooCommerce_Refund_Adapter();
+		$this->woocommerce_reward_adapter             = new WooCommerce_Reward_Adapter();
+		$this->contribution_checkout                  = new Contribution_Checkout();
 	}
 
 	public static function instance(): Plugin {
@@ -87,6 +89,7 @@ final class Plugin {
 		add_action( 'init', array( $this->campaign_submission, 'register' ) );
 		add_action( 'init', array( $this->campaign_editor, 'register' ) );
 		add_action( 'init', array( $this->reward_manager, 'register' ) );
+		add_action( 'init', array( $this->reward_fulfillment_manager, 'register' ) );
 		add_action( 'init', array( $this->promoter_dashboard, 'register' ) );
 		add_action( 'init', array( $this->promoter_registration, 'register' ) );
 
