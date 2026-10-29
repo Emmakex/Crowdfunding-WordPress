@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.4.9
+Stable tag: 0.4.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,6 +37,7 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Immutable reward-fulfillment transition events with source/reference idempotency.
 * Automatic claim-lifecycle synchronization into fulfillment state.
 * Bounded, idempotent backfill for historical active claims that predate fulfillment synchronization.
+* Authenticated campaign-scoped fulfillment management for promoters and administrators.
 * HPOS-safe WooCommerce order/refund integration through CRUD objects.
 * Safe activation, versioned upgrades and translation-ready strings.
 
@@ -53,8 +54,9 @@ The Core remains independent from any single crowdfunding platform, payment gate
 9. Native campaign permalinks automatically show progress, enabled rewards and the contribution form.
 10. Use `[crowdfunding_progress id="123"]`, `[crowdfunding_rewards id="123"]` or `[crowdfunding_contribute id="123"]` when those blocks are needed independently.
 11. Enable WordPress user registration if public promoter onboarding is required, then publish `[crowdfunding_promoter_register]`.
-12. Publish `[crowdfunding_submit_campaign]`, `[crowdfunding_edit_campaign]` and `[crowdfunding_promoter_dashboard edit_url="/edit-campaign/" rewards_url="/manage-rewards/"]` for the promoter workflow.
+12. Publish `[crowdfunding_submit_campaign]`, `[crowdfunding_edit_campaign]` and `[crowdfunding_promoter_dashboard edit_url="/edit-campaign/" rewards_url="/manage-rewards/" fulfillment_url="/manage-fulfillment/"]` for the promoter workflow.
 13. Publish `[crowdfunding_manage_rewards]` on a promoter-only page for reward management.
+14. Publish `[crowdfunding_manage_fulfillment]` on an authenticated page for campaign-scoped delivery operations.
 
 == Contributions and adjustments ==
 
@@ -100,7 +102,11 @@ Version 0.4.9 adds a bounded historical reconciliation pass for active claims th
 
 Backfill runs after the fulfillment schema installer, processes at most 50 claims per request by default (filterable and hard-capped at 200), never mutates claim rows and has no WooCommerce dependency.
 
-Fulfillment does not affect reward availability, payment state or claim eligibility. The lifecycle/backfill foundation stores no shipping/billing/customer PII.
+Version 0.4.10 adds a dedicated `manage_cfwp_fulfillments` capability and `[crowdfunding_manage_fulfillment]`. Promoters may operate fulfillment only for campaigns they own; administrators can supervise other campaigns through their existing cross-campaign authority. This capability does not grant promoters permission to edit published campaign content.
+
+The management UI derives campaign ownership from fulfillment → claim → reward on the server. A browser-supplied fulfillment ID is only a selector. Manual operations are deliberately restricted to `pending → processing`, `pending → fulfilled` and `processing → fulfilled`. `cancelled` remains controlled by entitlement lifecycle and `fulfilled` remains terminal.
+
+Fulfillment management calls `Reward_Fulfillment_Repository::transition()` and therefore preserves immutable transition events. The UI and its read-only query layer do not integrate with WooCommerce and store no shipping, billing, tracking or customer PII.
 
 == Reward selection and WooCommerce bridge ==
 
@@ -110,7 +116,7 @@ Reward selection is not a reservation. The server revalidates reward ownership, 
 
 The selected reward is transported on the crowdfunding cart/order line as `_cfwp_reward_id`. That order-item marker is evidence, not claim or fulfillment authority.
 
-The separate `WooCommerce_Reward_Adapter` creates a reward claim only after the contribution status is `confirmed`. The generic fulfillment lifecycle/backfill components listen to or inspect Core claim state only; they do not read WooCommerce orders.
+The separate `WooCommerce_Reward_Adapter` creates a reward claim only after the contribution status is `confirmed`. The generic fulfillment components listen to or inspect Core claim state only; they do not read WooCommerce orders.
 
 == Funding progress ==
 
@@ -132,9 +138,9 @@ The checkout uses a hidden virtual WooCommerce product as a transport line only.
 
 == Promoters ==
 
-The `cfwp_promoter` role can create and edit its own draft or pending campaigns. Promoters cannot publish campaigns, edit published campaigns or manage campaigns owned by other users.
+The `cfwp_promoter` role can create and edit its own draft or pending campaigns and manage fulfillment for rewards belonging to campaigns it owns. Promoters cannot publish campaigns, edit published campaigns or manage campaigns owned by other users.
 
-Administrators retain full authority over review, publication and lifecycle management.
+Administrators retain full authority over review, publication and cross-campaign fulfillment supervision.
 
 == Shortcodes ==
 
@@ -165,8 +171,11 @@ Displays the editor for one campaign owned by the current user. Only draft and p
 = [crowdfunding_manage_rewards] =
 Displays authenticated reward management for one owned draft/pending campaign.
 
+= [crowdfunding_manage_fulfillment] =
+Displays authenticated fulfillment operations for one authorized campaign. Promoters are restricted to campaigns they own; administrators may supervise other campaigns. The UI can advance only pending/processing delivery state and cannot manually cancel or reactivate entitlement-owned state.
+
 = [crowdfunding_promoter_dashboard] =
-Displays the current user's draft, pending and published campaigns. Optional `per_page`, `edit_url` and `rewards_url` attributes.
+Displays the current user's draft, pending and published campaigns. Optional `per_page`, `edit_url`, `rewards_url` and `fulfillment_url` attributes.
 
 == Frequently Asked Questions ==
 
@@ -178,17 +187,17 @@ No. Reward definitions, claims and fulfillment belong to the generic crowdfundin
 
 No. A claim is entitlement. Fulfillment is the independent operational delivery lifecycle for that entitlement.
 
-= What happens when a claim is created? =
+= Can a promoter cancel or reactivate fulfillment manually? =
 
-An active claim creates one idempotent `pending` fulfillment through the Core lifecycle bridge.
+No. `cancelled` and the return from `cancelled` to `pending` are controlled by the reward-claim lifecycle. The operational UI can only move active entitlement forward toward delivery.
+
+= Can fulfillment management edit a published campaign? =
+
+No. `manage_cfwp_fulfillments` is a separate capability. Promoters still cannot edit published campaign content.
 
 = What happens when entitlement is reversed? =
 
 A `pending` or `processing` fulfillment is automatically cancelled. If delivery was already marked `fulfilled`, the plugin never undoes delivery automatically and emits a synchronization error for manual review.
-
-= What happens if the claim becomes active again? =
-
-A cancelled fulfillment returns to `pending` if the claim is validly reactivated. The same historical fulfillment row is reused and a new immutable transition event is recorded.
 
 = What happens to active claims created before fulfillment existed? =
 
@@ -207,6 +216,15 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.4.10 =
+* Added dedicated `manage_cfwp_fulfillments` capability for promoters and administrators.
+* Added `[crowdfunding_manage_fulfillment]` campaign-scoped operational delivery management.
+* Added read-only fulfillment → claim → reward campaign authority queries.
+* Promoters remain restricted to campaigns they own; administrators can supervise other campaigns.
+* Manual operations are restricted to pending/processing forward transitions; cancelled remains entitlement-owned and fulfilled remains terminal.
+* Added optional `fulfillment_url` to the promoter dashboard for published campaigns.
+* Kept fulfillment management independent from WooCommerce and free of shipping/billing/tracking/customer PII.
 
 = 0.4.9 =
 * Added bounded, idempotent backfill for historical active reward claims missing fulfillment.
