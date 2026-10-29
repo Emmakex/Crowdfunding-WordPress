@@ -60,17 +60,19 @@ final class Campaign_Statistics {
 			return '<p class="cfwp-notice cfwp-notice--error">' . esc_html__( 'You cannot view statistics for this campaign.', 'crowdfunding-wordpress' ) . '</p>';
 		}
 
-		$summary        = $this->query->summary_for_campaign( $campaign->ID );
-		$trend          = $this->query->trends_for_campaign( $campaign->ID, $this->query_text( self::QUERY_FROM ), $this->query_text( self::QUERY_TO ), $this->query_text( self::QUERY_BUCKET ) );
-		$currency       = Campaigns::sanitize_currency( get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true ) );
-		$goal           = $this->normalize_decimal( get_post_meta( $campaign->ID, Campaigns::META_GOAL_AMOUNT, true ) );
-		$net_raised     = $this->normalize_decimal( $summary['net_raised'] ?? '0' );
-		$net_raised     = '' === $net_raised ? '0.00000000' : $net_raised;
-		$percentage     = $this->percentage( $net_raised, $goal );
-		$contributions  = is_array( $summary['contribution_statuses'] ?? null ) ? $summary['contribution_statuses'] : array();
-		$claims         = is_array( $summary['claim_statuses'] ?? null ) ? $summary['claim_statuses'] : array();
-		$status_object  = get_post_status_object( $campaign->post_status );
-		$status_label   = is_object( $status_object ) && isset( $status_object->label ) ? (string) $status_object->label : $campaign->post_status;
+		$summary                 = $this->query->summary_for_campaign( $campaign->ID );
+		$trend                   = $this->query->trends_for_campaign( $campaign->ID, $this->query_text( self::QUERY_FROM ), $this->query_text( self::QUERY_TO ), $this->query_text( self::QUERY_BUCKET ) );
+		$currency                = Campaigns::sanitize_currency( get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true ) );
+		$goal                    = $this->normalize_decimal( get_post_meta( $campaign->ID, Campaigns::META_GOAL_AMOUNT, true ) );
+		$net_raised              = $this->normalize_decimal( $summary['net_raised'] ?? '0' );
+		$net_raised              = '' === $net_raised ? '0.00000000' : $net_raised;
+		$percentage              = $this->percentage( $net_raised, $goal );
+		$contributions           = is_array( $summary['contribution_statuses'] ?? null ) ? $summary['contribution_statuses'] : array();
+		$claims                  = is_array( $summary['claim_statuses'] ?? null ) ? $summary['claim_statuses'] : array();
+		$fulfillments            = is_array( $summary['fulfillment_statuses'] ?? null ) ? $summary['fulfillment_statuses'] : array();
+		$fulfillment_completion  = isset( $summary['fulfillment_completion_percentage'] ) && is_numeric( $summary['fulfillment_completion_percentage'] ) ? (float) $summary['fulfillment_completion_percentage'] : null;
+		$status_object           = get_post_status_object( $campaign->post_status );
+		$status_label            = is_object( $status_object ) && isset( $status_object->label ) ? (string) $status_object->label : $campaign->post_status;
 
 		ob_start();
 		?>
@@ -109,6 +111,19 @@ final class Campaign_Statistics {
 						<?php echo $this->metric( __( 'Reversed', 'crowdfunding-wordpress' ), (string) absint( $claims[ Reward_Claims::STATUS_REVERSED ] ?? 0 ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 					</div>
 				</section>
+
+				<section class="cfwp-campaign-statistics__group">
+					<h3><?php esc_html_e( 'Reward fulfillment', 'crowdfunding-wordpress' ); ?></h3>
+					<p><?php esc_html_e( 'Completion rate uses active delivery workload only: pending, processing and fulfilled records. Cancelled fulfillment is reported separately and excluded from the rate.', 'crowdfunding-wordpress' ); ?></p>
+					<div class="cfwp-campaign-statistics__grid">
+						<?php echo $this->metric( __( 'Pending delivery', 'crowdfunding-wordpress' ), (string) absint( $summary['fulfillment_pending_delivery'] ?? 0 ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						<?php echo $this->metric( __( 'Completion rate', 'crowdfunding-wordpress' ), null === $fulfillment_completion ? '—' : number_format_i18n( $fulfillment_completion, 1 ) . '%' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						<?php echo $this->metric( __( 'Pending', 'crowdfunding-wordpress' ), (string) absint( $fulfillments[ Reward_Fulfillments::STATUS_PENDING ] ?? 0 ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						<?php echo $this->metric( __( 'Processing', 'crowdfunding-wordpress' ), (string) absint( $fulfillments[ Reward_Fulfillments::STATUS_PROCESSING ] ?? 0 ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						<?php echo $this->metric( __( 'Fulfilled', 'crowdfunding-wordpress' ), (string) absint( $fulfillments[ Reward_Fulfillments::STATUS_FULFILLED ] ?? 0 ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						<?php echo $this->metric( __( 'Cancelled', 'crowdfunding-wordpress' ), (string) absint( $fulfillments[ Reward_Fulfillments::STATUS_CANCELLED ] ?? 0 ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+					</div>
+				</section>
 			</div>
 
 			<?php echo $this->render_trends( $campaign->ID, $trend, $currency ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
@@ -120,10 +135,10 @@ final class Campaign_Statistics {
 
 	/** @param array{from:string,to:string,bucket:string,rows:array<int,array<string,mixed>>} $trend */
 	private function render_trends( int $campaign_id, array $trend, string $currency ): string {
-		$rows   = is_array( $trend['rows'] ?? null ) ? $trend['rows'] : array();
-		$bucket = isset( $trend['bucket'] ) ? (string) $trend['bucket'] : 'day';
-		$from   = isset( $trend['from'] ) ? (string) $trend['from'] : '';
-		$to     = isset( $trend['to'] ) ? (string) $trend['to'] : '';
+		$rows    = is_array( $trend['rows'] ?? null ) ? $trend['rows'] : array();
+		$bucket  = isset( $trend['bucket'] ) ? (string) $trend['bucket'] : 'day';
+		$from    = isset( $trend['from'] ) ? (string) $trend['from'] : '';
+		$to      = isset( $trend['to'] ) ? (string) $trend['to'] : '';
 		$max_net = 0.0;
 
 		foreach ( $rows as $row ) {

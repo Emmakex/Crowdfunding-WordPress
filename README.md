@@ -20,7 +20,7 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability, fulfillment, account dashboards and campaign statistics remain separate Core authorities.
 
-As of **0.5.2**, the repository includes:
+As of **0.5.3**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -33,6 +33,8 @@ As of **0.5.2**, the repository includes:
 - campaign net funding, progress, contribution-state counts and reward-claim counts derived from Core authorities;
 - bounded day/week/month campaign contribution trends over selectable date ranges;
 - trend net value derived from current confirmed contributions minus current applied refunds and attributed to contribution creation periods;
+- aggregate campaign fulfillment counts by pending, processing, fulfilled and cancelled Core state;
+- pending-delivery workload and fulfillment completion rate derived only from Core fulfillment rows;
 - generic versioned rewards domain linked to campaigns;
 - frontend reward management and public reward presentation;
 - versioned reward-claims ledger with active/reversed lifecycle;
@@ -84,6 +86,9 @@ As of **0.5.2**, the repository includes:
 - Guest contributions with `user_id = 0` are not attached heuristically to an authenticated account.
 - Campaign statistics are campaign-scoped aggregate reads; browser-selected campaign IDs are reauthorized against campaign ownership.
 - Campaign statistics reuse the authoritative net-confirmed total and expose only aggregate contribution/claim counts, never supporter rows or PII.
+- Campaign fulfillment statistics count only Core fulfillment rows joined through claim → reward → campaign; WooCommerce order status is never delivery authority.
+- Pending-delivery workload is `pending + processing`; fulfilment completion rate is `fulfilled / (pending + processing + fulfilled)` and excludes `cancelled` records from the denominator.
+- Fulfillment statistics never affect entitlement, reward availability or fulfillment lifecycle state.
 - Campaign trend filters are selectors only; authorization is resolved before any aggregate trend query runs.
 - Campaign trends are bounded to 366 days and use an allowlisted `day`, `week` or `month` bucket.
 - Trend net values use current Core status/refund facts and are attributed to contribution `created_at`; they are not presented as a reconstructed historical balance because contribution state transitions are not yet versioned as an event ledger.

@@ -30,9 +30,10 @@ final class Campaign_Statistics_Query {
 
 		$contribution_counts = array_fill_keys( Contributions::statuses(), 0 );
 		$claim_counts        = array_fill_keys( Reward_Claims::statuses(), 0 );
+		$fulfillment_counts  = array_fill_keys( Reward_Fulfillments::statuses(), 0 );
 
 		if ( $campaign_id <= 0 ) {
-			return $this->summary( $campaign_id, $contribution_counts, $claim_counts );
+			return $this->summary( $campaign_id, $contribution_counts, $claim_counts, $fulfillment_counts );
 		}
 
 		global $wpdb;
@@ -71,7 +72,24 @@ final class Campaign_Statistics_Query {
 			}
 		}
 
-		return $this->summary( $campaign_id, $contribution_counts, $claim_counts );
+		$fulfillment_rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT f.status, COUNT(*) AS total FROM ' . Reward_Fulfillments::table_name() . ' f INNER JOIN ' . Reward_Claims::table_name() . ' rc ON rc.id = f.claim_id INNER JOIN ' . Rewards::table_name() . ' r ON r.id = rc.reward_id WHERE r.campaign_id = %d GROUP BY f.status',
+				$campaign_id
+			),
+			ARRAY_A
+		);
+
+		if ( is_array( $fulfillment_rows ) ) {
+			foreach ( $fulfillment_rows as $row ) {
+				$status = isset( $row['status'] ) ? sanitize_key( (string) $row['status'] ) : '';
+				if ( array_key_exists( $status, $fulfillment_counts ) ) {
+					$fulfillment_counts[ $status ] = max( 0, (int) ( $row['total'] ?? 0 ) );
+				}
+			}
+		}
+
+		return $this->summary( $campaign_id, $contribution_counts, $claim_counts, $fulfillment_counts );
 	}
 
 	/**
@@ -159,15 +177,26 @@ final class Campaign_Statistics_Query {
 	/**
 	 * @param array<string,int> $contribution_counts Contribution counts by Core status.
 	 * @param array<string,int> $claim_counts Reward claim counts by Core status.
+	 * @param array<string,int> $fulfillment_counts Reward fulfillment counts by Core status.
 	 * @return array<string,mixed>
 	 */
-	private function summary( int $campaign_id, array $contribution_counts, array $claim_counts ): array {
+	private function summary( int $campaign_id, array $contribution_counts, array $claim_counts, array $fulfillment_counts ): array {
+		$pending_delivery    = (int) ( $fulfillment_counts[ Reward_Fulfillments::STATUS_PENDING ] ?? 0 ) + (int) ( $fulfillment_counts[ Reward_Fulfillments::STATUS_PROCESSING ] ?? 0 );
+		$fulfilled           = (int) ( $fulfillment_counts[ Reward_Fulfillments::STATUS_FULFILLED ] ?? 0 );
+		$operational_total   = $pending_delivery + $fulfilled;
+		$completion_percent  = $operational_total > 0 ? round( ( $fulfilled / $operational_total ) * 100, 1 ) : null;
+
 		return array(
-			'net_raised'            => $campaign_id > 0 ? $this->adjustments->net_confirmed_total_for_campaign( $campaign_id ) : '0.00000000',
-			'contribution_total'    => array_sum( $contribution_counts ),
-			'contribution_statuses' => $contribution_counts,
-			'claim_total'           => array_sum( $claim_counts ),
-			'claim_statuses'        => $claim_counts,
+			'net_raised'                         => $campaign_id > 0 ? $this->adjustments->net_confirmed_total_for_campaign( $campaign_id ) : '0.00000000',
+			'contribution_total'                 => array_sum( $contribution_counts ),
+			'contribution_statuses'              => $contribution_counts,
+			'claim_total'                        => array_sum( $claim_counts ),
+			'claim_statuses'                     => $claim_counts,
+			'fulfillment_total'                  => array_sum( $fulfillment_counts ),
+			'fulfillment_statuses'               => $fulfillment_counts,
+			'fulfillment_pending_delivery'       => $pending_delivery,
+			'fulfillment_operational_total'      => $operational_total,
+			'fulfillment_completion_percentage' => $completion_percent,
 		);
 	}
 
