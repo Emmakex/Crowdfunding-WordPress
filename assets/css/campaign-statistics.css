@@ -1,0 +1,67 @@
+.cfwp-campaign-statistics {
+	display: grid;
+	gap: 1.5rem;
+}
+
+.cfwp-campaign-statistics__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.cfwp-campaign-statistics__header h2,
+.cfwp-campaign-statistics__group h3 {
+	margin-top: 0;
+}
+
+.cfwp-campaign-statistics__header p {
+	margin-bottom: 0;
+}
+
+.cfwp-campaign-statistics__status {
+	border: 1px solid currentColor;
+	border-radius: 999px;
+	padding: 0.25rem 0.7rem;
+	white-space: nowrap;
+}
+
+.cfwp-campaign-statistics__overview,
+.cfwp-campaign-statistics__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: 0.75rem;
+}
+
+.cfwp-campaign-statistics__groups {
+	display: grid;
+	gap: 1.5rem;
+}
+
+.cfwp-campaign-statistics__group {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.cfwp-campaign-statistics__metric {
+	display: grid;
+	gap: 0.25rem;
+	border: 1px solid currentColor;
+	border-radius: 0.5rem;
+	padding: 1rem;
+}
+
+.cfwp-campaign-statistics__metric span {
+	font-size: 0.875em;
+	opacity: 0.75;
+}
+
+.cfwp-campaign-statistics__metric strong {
+	font-size: 1.25em;
+}
+
+@media (max-width: 600px) {
+	.cfwp-campaign-statistics__header {
+		flex-direction: column;
+	}
+}

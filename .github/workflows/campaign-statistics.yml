@@ -1,0 +1,65 @@
+name: Campaign Statistics
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  campaign-statistics-contract:
+    name: Campaign statistics aggregate authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify statistics remain aggregate, read-only and campaign-scoped
+        shell: bash
+        run: |
+          set -euo pipefail
+          surface='includes/class-campaign-statistics.php'
+          query='includes/class-campaign-statistics-query.php'
+          dashboard='includes/class-promoter-dashboard.php'
+          bootstrap='crowdfunding-wordpress.php'
+          plugin='includes/class-plugin.php'
+
+          grep -Fq "add_shortcode( 'crowdfunding_campaign_statistics'" "$surface"
+          grep -Fq "current_user_can( 'edit_cfwp_campaigns' )" "$surface"
+          grep -Fq "(int) \$campaign->post_author === get_current_user_id()" "$surface"
+          grep -Fq "current_user_can( 'edit_others_cfwp_campaigns' )" "$surface"
+          grep -Fq "\$this->query->summary_for_campaign( \$campaign->ID )" "$surface"
+          grep -Fq "net_confirmed_total_for_campaign( \$campaign_id )" "$query"
+          grep -Fq "WHERE campaign_id = %d GROUP BY status" "$query"
+          grep -Fq "INNER JOIN ' . Rewards::table_name() . ' r ON r.id = rc.reward_id" "$query"
+          grep -Fq "WHERE r.campaign_id = %d GROUP BY rc.status" "$query"
+          grep -Fq "'statistics_url'  => ''" "$dashboard"
+          grep -Fq "View statistics" "$dashboard"
+          grep -Fq "includes/class-campaign-statistics-query.php" "$bootstrap"
+          grep -Fq "includes/class-campaign-statistics.php" "$bootstrap"
+          grep -Fq "Campaign_Statistics" "$plugin"
+
+          if grep -Eq 'admin_post_|\$_POST|woocommerce|\bwc_' "$surface" "$query"; then
+            echo 'Campaign statistics must remain read-only and WooCommerce-independent.'
+            exit 1
+          fi
+
+          if grep -Eq 'INSERT|UPDATE|DELETE|START TRANSACTION|COMMIT|ROLLBACK' "$query"; then
+            echo 'Campaign statistics query must remain SELECT-only.'
+            exit 1
+          fi
+
+          if grep -Eiq 'user_id|user_email|email|billing|shipping|phone|customer|source_reference' "$query"; then
+            echo 'Campaign statistics query must not select or return supporter identity or PII.'
+            exit 1
+          fi
+
+          if grep -Eiq 'user_email|billing|shipping|phone|customer|source_reference' "$surface"; then
+            echo 'Campaign statistics surface must remain free of supporter PII and technical references.'
+            exit 1
+          fi
+
+          if grep -Eq 'SELECT[[:space:]]+\*' "$query"; then
+            echo 'Campaign statistics must not fetch supporter-level rows.'
+            exit 1
+          fi
