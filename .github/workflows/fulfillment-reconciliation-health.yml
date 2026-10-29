@@ -1,0 +1,75 @@
+name: Fulfillment Reconciliation Health
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  fulfillment-reconciliation-health-contract:
+    name: Fulfillment reconciliation health authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify health remains aggregate, read-only and Core-authoritative
+        shell: bash
+        run: |
+          set -euo pipefail
+          surface='includes/class-fulfillment-reconciliation-health.php'
+          query='includes/class-fulfillment-reconciliation-health-query.php'
+          bootstrap='crowdfunding-wordpress.php'
+          plugin='includes/class-plugin.php'
+
+          grep -Fq "add_shortcode( 'crowdfunding_fulfillment_health'" "$surface"
+          grep -Fq "current_user_can( 'edit_cfwp_campaigns' )" "$surface"
+          grep -Fq "(int) \$campaign->post_author === get_current_user_id()" "$surface"
+          grep -Fq "current_user_can( 'edit_others_cfwp_campaigns' )" "$surface"
+          grep -Fq "summary_for_campaign( \$campaign->ID )" "$surface"
+
+          grep -Fq "rc.status = %s AND f.id IS NULL" "$query"
+          grep -Fq "rc.status = %s AND f.status = %s" "$query"
+          grep -Fq "f.status IN (%s,%s)" "$query"
+          grep -Fq "'active_missing_fulfillment'" "$query"
+          grep -Fq "'active_cancelled_fulfillment'" "$query"
+          grep -Fq "'reversed_open_fulfillment'" "$query"
+          grep -Fq "'reversed_fulfilled'" "$query"
+          grep -Fq "'repairable_total'" "$query"
+          grep -Fq "'manual_review_total'" "$query"
+          grep -Fq "'issue_total'" "$query"
+
+          grep -Fq "includes/class-fulfillment-reconciliation-health-query.php" "$bootstrap"
+          grep -Fq "includes/class-fulfillment-reconciliation-health.php" "$bootstrap"
+          grep -Fq "Fulfillment_Reconciliation_Health" "$plugin"
+
+          if grep -Eiq 'woocommerce|\bwc_|order_status' "$surface" "$query"; then
+            echo 'Fulfillment reconciliation health must remain independent from WooCommerce authority.'
+            exit 1
+          fi
+
+          if grep -Eq 'admin_post_|\$_POST|->transition\(|ensure_for_claim\(|reconcile_contribution\(' "$surface" "$query"; then
+            echo 'Fulfillment reconciliation health must never repair or mutate lifecycle state.'
+            exit 1
+          fi
+
+          if grep -Eq 'INSERT|UPDATE|DELETE|START TRANSACTION|COMMIT|ROLLBACK' "$query"; then
+            echo 'Fulfillment reconciliation health query must remain SELECT-only.'
+            exit 1
+          fi
+
+          if grep -Eiq 'user_id|user_email|email|billing|shipping|phone|customer|source_reference|tracking' "$query" "$surface"; then
+            echo 'Fulfillment reconciliation health must remain free of supporter PII and technical references.'
+            exit 1
+          fi
+
+          if grep -Eq "['\"]claim_id['\"]|['\"]fulfillment_id['\"]" "$query"; then
+            echo 'Fulfillment reconciliation health must not return claim or fulfillment identifiers.'
+            exit 1
+          fi
+
+          if grep -Eq 'SELECT[[:space:]]+\*' "$query"; then
+            echo 'Fulfillment reconciliation health must remain aggregate-only.'
+            exit 1
+          fi
