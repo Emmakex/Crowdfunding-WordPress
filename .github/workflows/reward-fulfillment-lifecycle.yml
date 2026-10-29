@@ -1,0 +1,55 @@
+name: Reward Fulfillment Lifecycle
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  fulfillment-lifecycle-contract:
+    name: Reward fulfillment lifecycle contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify claim lifecycle remains the only automatic fulfillment authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          bridge='includes/class-reward-fulfillment-lifecycle-bridge.php'
+          repo='includes/class-reward-fulfillment-repository.php'
+          plugin='includes/class-plugin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq "cfwp_reward_claim_created" "$bridge"
+          grep -Fq "cfwp_reward_claim_reversed" "$bridge"
+          grep -Fq "cfwp_reward_claim_reactivated" "$bridge"
+          grep -Fq "ensure_for_claim" "$bridge"
+          grep -Fq "Reward_Fulfillments::STATUS_CANCELLED" "$bridge"
+          grep -Fq "Reward_Fulfillments::STATUS_PENDING" "$bridge"
+          grep -Fq "Reward_Fulfillments::STATUS_FULFILLED" "$bridge"
+          grep -Fq "cfwp_reward_fulfillment_claim_reversed_after_fulfillment" "$bridge"
+          grep -Fq "cfwp_reward_fulfillment_sync_error" "$bridge"
+          grep -Fq "count( \$this->fulfillments->list_events( \$fulfillment_id ) ) + 1" "$bridge"
+          grep -Fq "class-reward-fulfillment-lifecycle-bridge.php" "$bootstrap"
+          grep -Fq "Reward_Fulfillment_Lifecycle_Bridge" "$plugin"
+          grep -Fq "reward_fulfillment_lifecycle_bridge->register()" "$plugin"
+
+          if grep -Eq '\$wpdb|woocommerce|\bwc_' "$bridge"; then
+            echo 'Fulfillment lifecycle bridge must remain Core-only and SQL-free.'
+            exit 1
+          fi
+
+          if grep -Eq 'STATUS_FULFILLED[[:space:]]*,[[:space:]]*self::SOURCE|STATUS_FULFILLED[[:space:]]*,[[:space:]]*$' "$bridge"; then
+            echo 'Lifecycle automation must never transition another state into fulfilled.'
+            exit 1
+          fi
+
+          if grep -Eq 'delete|DELETE' "$bridge"; then
+            echo 'Fulfillment lifecycle synchronization must preserve history.'
+            exit 1
+          fi
+
+          grep -Fq "Reward_Fulfillments::STATUS_FULFILLED => array()," "$repo"

@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → independent fulfillment state`
+`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle`
 
 Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability and fulfillment remain separate Core authorities.
 
-As of **0.4.7**, the repository includes:
+As of **0.4.8**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -36,6 +36,8 @@ As of **0.4.7**, the repository includes:
 - public finite reward availability derived from active claims;
 - versioned reward-fulfillment state separate from entitlement;
 - immutable fulfillment transition events with source/reference idempotency;
+- automatic claim-lifecycle synchronization into fulfillment state;
+- explicit protection against automatically reversing a fulfillment already marked `fulfilled`;
 - HPOS-safe WooCommerce order and refund adapters;
 - authoritative net confirmed raised amount and campaign progress.
 
@@ -52,9 +54,13 @@ As of **0.4.7**, the repository includes:
 - Fulfillment does not own stock, payment state or reward eligibility.
 - Each claim can have at most one fulfillment record.
 - Fulfillment current state is stored for efficient reads, while every real transition is preserved in an immutable event ledger.
-- Fulfillment creation and forward progress require an active reward claim.
-- `fulfilled` is terminal; `cancelled → pending` is permitted only so a future entitlement reactivation can safely resume delivery without creating a second fulfillment row.
-- Fulfillment stores no billing, shipping or customer PII in this foundation.
+- New active claims create one `pending` fulfillment idempotently.
+- Reversed claims cancel only `pending` or `processing` fulfillment work.
+- Reactivated claims recover a cancelled fulfillment back to `pending` rather than creating a duplicate.
+- Repeated active/reversed cycles use distinct idempotent fulfillment event references derived from event sequence.
+- `fulfilled` is terminal and is never automatically changed when a claim is later reversed; the mismatch is surfaced for manual review.
+- Forward fulfillment progress requires an active reward claim.
+- Fulfillment stores no billing, shipping or customer PII in this lifecycle bridge.
 - Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
 - Original contribution amounts are immutable; financial corrections are additive adjustment records.
 - Escaping, sanitization, capability checks, nonces and idempotency are mandatory.

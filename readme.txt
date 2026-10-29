@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.4.7
+Stable tag: 0.4.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,7 +11,7 @@ Create and manage crowdfunding campaigns directly in WordPress. Built by Kairose
 
 == Description ==
 
-Crowdfunding WordPress provides a generic crowdfunding domain for WordPress with campaigns, promoters, contributions, refund-safe accounting, rewards, reward claims, fulfillment foundations, WooCommerce checkout integration and public funding progress.
+Crowdfunding WordPress provides a generic crowdfunding domain for WordPress with campaigns, promoters, contributions, refund-safe accounting, rewards, reward claims, fulfillment lifecycle, WooCommerce checkout integration and public funding progress.
 
 The Core remains independent from any single crowdfunding platform, payment gateway or vertical implementation.
 
@@ -35,6 +35,7 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Safe reward-claim reversal/reactivation after refunds.
 * Versioned reward-fulfillment state, one record per claim.
 * Immutable reward-fulfillment transition events with source/reference idempotency.
+* Automatic claim-lifecycle synchronization into fulfillment state.
 * HPOS-safe WooCommerce order/refund integration through CRUD objects.
 * Safe activation, versioned upgrades and translation-ready strings.
 
@@ -86,13 +87,15 @@ Finite rewards show their current derived remaining count. Zero means unavailabl
 
 == Reward fulfillment ==
 
-Version 0.4.7 introduces a separate Core fulfillment authority. A reward claim answers whether the supporter currently has the entitlement; a fulfillment record answers the operational delivery state. The two responsibilities are intentionally separate.
+Reward claims and fulfillment remain separate authorities. A claim answers whether the supporter currently has the entitlement; a fulfillment record answers the operational delivery state.
 
-Each claim can have at most one row in `cfwp_reward_fulfillments`. The current state is one of `pending`, `processing`, `fulfilled` or `cancelled`. `fulfilled` is terminal. `cancelled` may return to `pending` only so a future valid entitlement reactivation can resume the same historical fulfillment instead of creating a duplicate.
+Each claim can have at most one row in `cfwp_reward_fulfillments`. The current state is one of `pending`, `processing`, `fulfilled` or `cancelled`. Every real creation/transition is recorded in the immutable `cfwp_reward_fulfillment_events` ledger with `source + source_reference` idempotency.
 
-Every real creation/transition is also recorded in the immutable `cfwp_reward_fulfillment_events` ledger with `source + source_reference` idempotency. Forward fulfillment transitions require an active reward claim and use row locks for safe state changes.
+Version 0.4.8 adds the Core lifecycle bridge. A newly created active claim idempotently gets one `pending` fulfillment. Reversing a claim automatically moves `pending` or `processing` fulfillment to `cancelled`. Reactivating that claim returns the same cancelled fulfillment to `pending`; it never creates a second delivery record.
 
-This foundation does not automatically create fulfillment records, expose a fulfillment UI, store shipping/billing/customer PII, send notifications or integrate carriers. Those responsibilities remain separate future cuts.
+Repeated reversal/reactivation cycles use a fresh event-sequence-based source reference so an old transition cannot masquerade as a later successful transition. `fulfilled` remains terminal: if entitlement is reversed after delivery, the plugin does not automatically undo delivery and instead emits `cfwp_reward_fulfillment_sync_error` for manual review.
+
+Fulfillment does not affect reward availability, payment state or claim eligibility. The lifecycle bridge stores no shipping/billing/customer PII and has no WooCommerce dependency.
 
 == Reward selection and WooCommerce bridge ==
 
@@ -102,7 +105,7 @@ Reward selection is not a reservation. The server revalidates reward ownership, 
 
 The selected reward is transported on the crowdfunding cart/order line as `_cfwp_reward_id`. That order-item marker is evidence, not claim or fulfillment authority.
 
-The separate `WooCommerce_Reward_Adapter` creates a reward claim only after the contribution status is `confirmed`. Fulfillment remains independent from WooCommerce in 0.4.7.
+The separate `WooCommerce_Reward_Adapter` creates a reward claim only after the contribution status is `confirmed`. The generic fulfillment bridge listens only to Core claim lifecycle events; it does not read WooCommerce orders.
 
 == Funding progress ==
 
@@ -170,9 +173,17 @@ No. Reward definitions, claims and fulfillment belong to the generic crowdfundin
 
 No. A claim is entitlement. Fulfillment is the independent operational delivery lifecycle for that entitlement.
 
-= Does version 0.4.7 automatically start delivery when a claim is created? =
+= What happens when a claim is created? =
 
-No. It introduces the versioned fulfillment domain, idempotent repository and audit ledger only. Automatic claim-to-fulfillment synchronization and management UI are intentionally separate cuts.
+Version 0.4.8 creates one idempotent `pending` fulfillment for the active claim through the Core lifecycle bridge.
+
+= What happens when entitlement is reversed? =
+
+A `pending` or `processing` fulfillment is automatically cancelled. If delivery was already marked `fulfilled`, the plugin never undoes delivery automatically and emits a synchronization error for manual review.
+
+= What happens if the claim becomes active again? =
+
+A cancelled fulfillment returns to `pending` if the claim is validly reactivated. The same historical fulfillment row is reused and a new immutable transition event is recorded.
 
 = Where does the public availability number come from? =
 
@@ -188,13 +199,21 @@ No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference 
 
 == Changelog ==
 
+= 0.4.8 =
+* Added automatic Core claim-to-fulfillment lifecycle synchronization.
+* Active claim creation idempotently creates one pending fulfillment.
+* Claim reversal cancels pending/processing fulfillment while preserving immutable transition history.
+* Claim reactivation restores cancelled fulfillment to pending without creating a duplicate row.
+* Added event-sequence-based transition references so repeated reversal/reactivation cycles stay idempotent.
+* Kept fulfilled delivery terminal and surfaced post-delivery entitlement reversal for manual review instead of automatically undoing delivery.
+* Kept the lifecycle bridge independent from WooCommerce, availability and supporter PII.
+
 = 0.4.7 =
 * Added versioned `cfwp_reward_fulfillments` Core state, one fulfillment per reward claim.
 * Added `pending`, `processing`, `fulfilled` and `cancelled` fulfillment states.
 * Added immutable `cfwp_reward_fulfillment_events` transition history with source/reference idempotency.
 * Added active-claim validation and row-locked fulfillment transitions.
 * Kept fulfillment independent from WooCommerce, reward availability and customer/shipping PII.
-* Deliberately deferred automatic claim-to-fulfillment synchronization and management UI.
 
 = 0.4.6 =
 * Added public finite reward availability derived exclusively from active Core claims.
