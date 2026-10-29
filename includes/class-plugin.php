@@ -24,6 +24,7 @@ final class Plugin {
 	private Promoter_Registration $promoter_registration;
 	private Campaign_Progress $campaign_progress;
 	private Reward_Fulfillment_Lifecycle_Bridge $reward_fulfillment_lifecycle_bridge;
+	private Reward_Fulfillment_Backfill_Reconciler $reward_fulfillment_backfill_reconciler;
 	private WooCommerce_Adapter $woocommerce_adapter;
 	private WooCommerce_Refund_Adapter $woocommerce_refund_adapter;
 	private WooCommerce_Reward_Adapter $woocommerce_reward_adapter;
@@ -42,6 +43,7 @@ final class Plugin {
 		$this->promoter_registration                = new Promoter_Registration();
 		$this->campaign_progress                    = new Campaign_Progress();
 		$this->reward_fulfillment_lifecycle_bridge  = new Reward_Fulfillment_Lifecycle_Bridge();
+		$this->reward_fulfillment_backfill_reconciler = new Reward_Fulfillment_Backfill_Reconciler();
 		$this->woocommerce_adapter                  = new WooCommerce_Adapter();
 		$this->woocommerce_refund_adapter           = new WooCommerce_Refund_Adapter();
 		$this->woocommerce_reward_adapter           = new WooCommerce_Reward_Adapter();
@@ -68,6 +70,7 @@ final class Plugin {
 		$this->woocommerce_reward_adapter->register();
 		$this->contribution_checkout->register();
 		$this->reward_fulfillment_lifecycle_bridge->register();
+		$this->reward_fulfillment_backfill_reconciler->register();
 
 		add_action( 'init', array( Promoters::class, 'maybe_install' ), 1 );
 		add_action( 'init', array( Contributions::class, 'maybe_install' ), 2 );

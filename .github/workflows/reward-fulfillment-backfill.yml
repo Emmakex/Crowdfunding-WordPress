@@ -1,0 +1,59 @@
+name: Reward Fulfillment Backfill
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  fulfillment-backfill-contract:
+    name: Reward fulfillment backfill contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify historical fulfillment reconciliation remains bounded and Core-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          reconciler='includes/class-reward-fulfillment-backfill-reconciler.php'
+          plugin='includes/class-plugin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq "cfwp_reward_fulfillment_backfill_version" "$reconciler"
+          grep -Fq "BACKFILL_VERSION = '1'" "$reconciler"
+          grep -Fq "fulfillment_backfill" "$reconciler"
+          grep -Fq "add_action( 'init', array( \$this, 'maybe_reconcile' ), 7 )" "$reconciler"
+          grep -Fq "cfwp_reward_fulfillment_backfill_batch_size" "$reconciler"
+          grep -Fq "min( 200" "$reconciler"
+          grep -Fq "LEFT JOIN" "$reconciler"
+          grep -Fq "Reward_Claims::STATUS_ACTIVE" "$reconciler"
+          grep -Fq "f.id IS NULL" "$reconciler"
+          grep -Fq "ensure_for_claim" "$reconciler"
+          grep -Fq "cfwp_reward_fulfillment_backfill_error" "$reconciler"
+          grep -Fq "find_missing_active_claim_ids( 1 )" "$reconciler"
+          grep -Fq "is_wp_error( \$claim_ids )" "$reconciler"
+          grep -Fq "is_wp_error( \$remaining )" "$reconciler"
+          grep -Fq "\$wpdb->last_error" "$reconciler"
+          grep -Fq "cfwp_reward_fulfillment_backfill_query_failed" "$reconciler"
+          grep -Fq "update_option( self::OPTION_VERSION, self::BACKFILL_VERSION, false )" "$reconciler"
+          grep -Fq "class-reward-fulfillment-backfill-reconciler.php" "$bootstrap"
+          grep -Fq "Reward_Fulfillment_Backfill_Reconciler" "$plugin"
+          grep -Fq "reward_fulfillment_backfill_reconciler->register()" "$plugin"
+
+          if grep -Eqi 'woocommerce|\bwc_' "$reconciler"; then
+            echo 'Fulfillment backfill must remain independent from WooCommerce.'
+            exit 1
+          fi
+
+          if grep -Eq '\$wpdb->(insert|update|delete|replace)' "$reconciler"; then
+            echo 'Fulfillment backfill may read claims but must not mutate domain rows directly.'
+            exit 1
+          fi
+
+          if grep -Eqi '\bDELETE\b|delete\(' "$reconciler"; then
+            echo 'Fulfillment backfill must preserve historical data.'
+            exit 1
+          fi
