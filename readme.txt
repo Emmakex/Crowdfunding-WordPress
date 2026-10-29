@@ -81,6 +81,12 @@ Contributions store only Core crowdfunding facts: campaign, optional WordPress u
 
 `source + source_reference` is the contribution idempotency key. Original amounts are immutable. Refunds are represented by a separate adjustment ledger, and public funding progress is derived from confirmed contributions net of applied refunds.
 
+== Campaign statistics ==
+
+Version 0.5.2 adds bounded contribution trends grouped by day, week or month over a maximum range of 366 days. Trend values use current confirmed/refund-adjusted Core facts attributed to contribution creation periods; they are not presented as reconstructed historical balances for past dates.
+
+Campaign and portfolio statistics remain aggregate and read-only. They never expose supporter rows, email addresses, billing/shipping data or WooCommerce customer records.
+
 == Rewards and fulfillment ==
 
 Rewards belong to campaigns and can have finite limits. Availability is derived from active reward claims rather than mutable stock counters.
