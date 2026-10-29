@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.4.11
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,7 +11,7 @@ Create and manage crowdfunding campaigns directly in WordPress. Built by Kairose
 
 == Description ==
 
-Crowdfunding WordPress provides a generic crowdfunding domain for WordPress with campaigns, promoters, contributions, refund-safe accounting, rewards, reward claims, fulfillment lifecycle, WooCommerce checkout integration and public funding progress.
+Crowdfunding WordPress provides a generic crowdfunding domain for WordPress with campaigns, promoters, contributions, refund-safe accounting, rewards, reward claims, fulfillment lifecycle, account dashboards, WooCommerce checkout integration and public funding progress.
 
 The Core remains independent from any single crowdfunding platform, payment gateway or vertical implementation.
 
@@ -25,6 +25,9 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Dedicated Crowdfunding Promoter role and campaign-specific capabilities.
 * Versioned contribution ledger with source/reference idempotency.
 * Immutable contribution amounts plus a separate versioned refund-adjustment ledger.
+* Authenticated current-user contribution dashboard derived from Core ledgers.
+* Contribution dashboard net amounts derived from applied refund adjustments.
+* Contribution dashboard reward entitlement derived from Core reward claims.
 * Generic versioned rewards domain linked to campaigns.
 * Authenticated frontend reward management and public reward cards.
 * Versioned reward-claims ledger with active/reversed states and source/reference idempotency.
@@ -58,7 +61,8 @@ The Core remains independent from any single crowdfunding platform, payment gate
 12. Publish `[crowdfunding_submit_campaign]`, `[crowdfunding_edit_campaign]` and `[crowdfunding_promoter_dashboard edit_url="/edit-campaign/" rewards_url="/manage-rewards/" fulfillment_url="/manage-fulfillment/"]` for the promoter workflow.
 13. Publish `[crowdfunding_manage_rewards]` on a promoter-only page for reward management.
 14. Publish `[crowdfunding_manage_fulfillment]` on an authenticated page for campaign-scoped delivery operations.
-15. Add `[crowdfunding_fulfillment_audit]` to the same page or another authenticated page when the immutable fulfillment history should be visible.
+15. Add `[crowdfunding_fulfillment_audit]` to the same page or another authenticated page when immutable fulfillment history should be visible.
+16. Publish `[crowdfunding_contribution_dashboard]` on an authenticated account page so signed-in users can review their own account-linked contributions.
 
 == Contributions and adjustments ==
 
@@ -67,6 +71,14 @@ Each contribution stores only the Core crowdfunding facts: campaign ID, optional
 The pair `source + source_reference` is unique and acts as an idempotency key. Original contribution amounts are immutable. Refunds are separate `cfwp_contribution_adjustments` records with their own idempotency key and `applied` / `reversed` lifecycle.
 
 An applied refund can never exceed the contribution amount still available to refund. `net_amount_for_contribution()` derives the current contribution value as original amount minus applied refund adjustments. Public progress uses confirmed contributions net of applied refunds.
+
+== Contribution dashboard ==
+
+Version 0.5.0 adds `[crowdfunding_contribution_dashboard]`, an authenticated read-only account surface. It always scopes contribution reads to `get_current_user_id()` and does not accept a browser-supplied user ID.
+
+The dashboard shows the associated campaign, contribution date and Core status, original amount, applied refund total, current net amount and any reward entitlement recorded in the Core reward-claims ledger. Pagination is local to the dashboard and does not change account identity.
+
+The dashboard does not read WooCommerce orders, billing/shipping data or payment-gateway customer details. Technical `source` and `source_reference` identifiers are not exposed. Contributions recorded with `user_id = 0` remain guest contributions and are not heuristically attached to a signed-in account.
 
 == Rewards ==
 
@@ -165,6 +177,9 @@ Displays enabled reward definitions for one published campaign, including derive
 = [crowdfunding_contribute] =
 Displays the WooCommerce-backed contribution form for a published, open campaign. Optional `id` selects the campaign. Enabled rewards can be selected optionally and are revalidated server-side.
 
+= [crowdfunding_contribution_dashboard] =
+Displays the authenticated current user's account-linked contributions, net refund-adjusted amount and Core reward entitlement. Optional `per_page` accepts 1–24. Account identity always comes from the current WordPress session.
+
 = [crowdfunding_promoter_register] =
 Displays promoter registration when WordPress user registration is enabled.
 
@@ -187,6 +202,18 @@ Displays the immutable chronological fulfillment event history for one authorize
 Displays the current user's draft, pending and published campaigns. Optional `per_page`, `edit_url`, `rewards_url` and `fulfillment_url` attributes.
 
 == Frequently Asked Questions ==
+
+= Can the contribution dashboard show another user's contributions? =
+
+No. The shortcode derives account identity exclusively from the signed-in WordPress user. It does not accept a user ID parameter from the browser.
+
+= What happens to guest contributions? =
+
+A contribution with `user_id = 0` remains a guest contribution. Version 0.5.0 does not guess account ownership from email, order or billing data.
+
+= Are dashboard amounts read from WooCommerce orders? =
+
+No. Original amount, applied refunds and net amount are read from the Crowdfunding WordPress contribution and adjustment ledgers. Reward entitlement is read from Core reward claims.
 
 = Are rewards WooCommerce products? =
 
@@ -229,6 +256,15 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.5.0 =
+* Added `[crowdfunding_contribution_dashboard]` for authenticated current-user contribution history.
+* Added a SELECT-only dashboard query scoped by Core `user_id`.
+* Added original, refunded and net amounts derived from contribution and applied-adjustment ledgers.
+* Added Core reward entitlement summaries without reading WooCommerce orders.
+* Added current-user-only pagination and published-campaign links.
+* Guest contributions remain unattached when `user_id = 0`; no identity guessing from billing or order data.
+* Kept technical source references, WooCommerce customer data and dashboard write actions out of the account surface.
 
 = 0.4.11 =
 * Added `[crowdfunding_fulfillment_audit]` as a campaign-scoped read-only fulfillment timeline.

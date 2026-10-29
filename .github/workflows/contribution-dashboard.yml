@@ -1,0 +1,62 @@
+name: Contribution Dashboard
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  contribution-dashboard-contract:
+    name: Current-user contribution dashboard contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify dashboard remains read-only and current-user scoped
+        shell: bash
+        run: |
+          set -euo pipefail
+          dashboard='includes/class-contribution-dashboard.php'
+          query='includes/class-contribution-dashboard-query.php'
+          contributions='includes/class-contributions.php'
+          claims='includes/class-reward-claims.php'
+          bootstrap='crowdfunding-wordpress.php'
+          plugin='includes/class-plugin.php'
+
+          grep -Fq "add_shortcode( 'crowdfunding_contribution_dashboard'" "$dashboard"
+          grep -Fq "array( 'per_page' => 10 )" "$dashboard"
+          grep -Fq "\$user_id  = get_current_user_id();" "$dashboard"
+          grep -Fq "\$this->query->page_for_user( \$user_id, \$page, \$per_page )" "$dashboard"
+          grep -Fq "reward_claims_for_contribution( \$contribution_id )" "$dashboard"
+          grep -Fq "WHERE c.user_id = %d" "$query"
+          grep -Fq "Contribution_Adjustments::TYPE_REFUND" "$query"
+          grep -Fq "Contribution_Adjustments::STATUS_APPLIED" "$query"
+          grep -Fq "Reward_Claims::table_name()" "$query"
+          grep -Fq "Rewards::table_name()" "$query"
+          grep -Fq "KEY user_id (user_id)" "$contributions"
+          grep -Fq "KEY contribution_id (contribution_id)" "$claims"
+          grep -Fq "includes/class-contribution-dashboard-query.php" "$bootstrap"
+          grep -Fq "includes/class-contribution-dashboard.php" "$bootstrap"
+          grep -Fq "Contribution_Dashboard" "$plugin"
+
+          if grep -Eq 'admin_post_|\$_POST|woocommerce|\bwc_' "$dashboard" "$query"; then
+            echo 'Contribution dashboard must remain read-only and WooCommerce-independent.'
+            exit 1
+          fi
+
+          if grep -Eq 'INSERT|UPDATE|DELETE|START TRANSACTION|COMMIT|ROLLBACK' "$query"; then
+            echo 'Contribution dashboard query must remain SELECT-only.'
+            exit 1
+          fi
+
+          if grep -Eq '\$_GET[^;]*(user_id|cfwp_user)' "$dashboard"; then
+            echo 'Contribution identity must never be selected from browser input.'
+            exit 1
+          fi
+
+          if grep -Eq 'source_reference|billing|shipping|tracking|customer_email|phone' "$dashboard" "$query"; then
+            echo 'Contribution dashboard must not expose technical references or customer PII.'
+            exit 1
+          fi
