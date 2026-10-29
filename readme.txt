@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.4.1
+Stable tag: 0.4.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,7 +29,9 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Generic versioned rewards domain linked to campaigns.
 * Reward minimum contribution thresholds, optional claim limits, enabled state and explicit ordering.
 * Authenticated frontend reward management for the promoter's own draft/pending campaigns.
-* Reward create, update and activate/deactivate actions protected by campaign ownership and operation-bound nonces.
+* Public reward cards for enabled rewards on published campaigns.
+* Standalone `[crowdfunding_rewards]` plus automatic reward presentation on campaign detail/permalink surfaces.
+* Public reward presentation exposes configured claim limits but does not invent claimed or remaining availability.
 * WooCommerce adapter based on CRUD order/item objects with HPOS compatibility.
 * Classic checkout and Store API/Checkout Blocks order synchronization.
 * Frontend contribution form that sends an exact campaign amount into WooCommerce checkout.
@@ -50,13 +52,14 @@ The Core remains independent from any single crowdfunding platform, payment gate
 5. Create or edit a campaign and fill in its funding goal, currency and deadline.
 6. Ensure each campaign currency matches the WooCommerce store currency.
 7. Publish a page with `[crowdfunding_campaigns]` to display the campaign catalogue.
-8. Use `[crowdfunding_campaign id="123"]` to embed one published campaign.
-9. Native campaign permalinks automatically show net confirmed funding progress and the contribution form.
+8. Use `[crowdfunding_campaign id="123"]` to embed one published campaign; enabled rewards are included automatically.
+9. Native campaign permalinks automatically show net confirmed funding progress, enabled rewards and the contribution form.
 10. Use `[crowdfunding_progress id="123"]` when the progress block is needed independently.
-11. Use `[crowdfunding_contribute id="123"]` when the contribution form is needed outside the native campaign permalink.
-12. Enable WordPress user registration if your site should allow public promoter onboarding, then publish a page with `[crowdfunding_promoter_register]`.
-13. Publish pages with `[crowdfunding_submit_campaign]`, `[crowdfunding_edit_campaign]` and `[crowdfunding_promoter_dashboard edit_url="/edit-campaign/"]` for the promoter workflow.
-14. Publish a promoter-only page with `[crowdfunding_manage_rewards]`; pass `id="123"` or `cfwp_campaign_id` to manage rewards for one owned draft/pending campaign.
+11. Use `[crowdfunding_rewards id="123"]` when enabled reward definitions are needed independently.
+12. Use `[crowdfunding_contribute id="123"]` when the contribution form is needed outside the native campaign permalink.
+13. Enable WordPress user registration if your site should allow public promoter onboarding, then publish a page with `[crowdfunding_promoter_register]`.
+14. Publish pages with `[crowdfunding_submit_campaign]`, `[crowdfunding_edit_campaign]` and `[crowdfunding_promoter_dashboard edit_url="/edit-campaign/" rewards_url="/manage-rewards/"]` for the promoter workflow.
+15. Publish a promoter-only page with `[crowdfunding_manage_rewards]`; pass `id="123"` or `cfwp_campaign_id` to manage rewards for one owned draft/pending campaign.
 
 == Contributions and adjustments ==
 
@@ -74,13 +77,17 @@ The generic Core rewards domain remains independent from WooCommerce products.
 
 Rewards are stored in the versioned `cfwp_rewards` table and belong to exactly one crowdfunding campaign. Each reward has a stable ID, title, description, minimum contribution amount, optional claim limit, enabled state and explicit sort order.
 
-A reward inherits the campaign's currency rather than duplicating a currency field. `claim_limit = 0` means unlimited. The claim limit is only the configured maximum; version 0.4.1 does not maintain mutable "remaining stock" because reward availability will be derived from a separate claims ledger in a later 0.4.x cut.
+A reward inherits the campaign's currency rather than duplicating a currency field. `claim_limit = 0` means unlimited. The claim limit is only the configured maximum; Crowdfunding WordPress does not maintain mutable "remaining stock" because reward availability will be derived from a separate claims ledger in a later 0.4.x cut.
 
 The generic `Reward_Repository` can create rewards, update their mutable presentation/eligibility fields, find them by stable ID and list rewards for one campaign. Campaign ownership cannot be reassigned through reward updates.
 
-Version 0.4.1 adds `[crowdfunding_manage_rewards]`. The surface is authenticated-only and permits create, edit, sort and activate/deactivate operations only when the selected campaign is owned by the current user, remains `draft` or `pending`, and passes WordPress `edit_post` authorization. Every write revalidates that a supplied reward belongs to that authorized campaign.
+`[crowdfunding_manage_rewards]` is authenticated-only and permits create, edit, sort and activate/deactivate operations only when the selected campaign is owned by the current user, remains `draft` or `pending`, and passes WordPress `edit_post` authorization. Every write revalidates that a supplied reward belongs to that authorized campaign.
 
-Reward management does not create reward claims, change campaign ownership, delete rewards or connect rewards to WooCommerce checkout. Those responsibilities remain separate 0.4.x cuts.
+Version 0.4.2 adds `[crowdfunding_rewards]` for public presentation. It renders only enabled rewards belonging to a published campaign and uses the campaign currency. Rewards are ordered by configured `sort_order`, then minimum contribution and stable ID. The same block is included automatically in `[crowdfunding_campaign]` output and native campaign permalinks.
+
+A positive `claim_limit` can be shown publicly as the configured total limit. Version 0.4.2 deliberately does not display claimed counts, remaining counts or availability labels because no claims ledger is authoritative yet.
+
+Reward presentation does not create reward claims, reserve stock or connect a reward to WooCommerce checkout. Those responsibilities remain separate 0.4.x cuts.
 
 == Funding progress ==
 
@@ -128,10 +135,13 @@ Administrators retain full authority over review, publication and lifecycle mana
 Displays published campaigns. Optional `per_page` (1–24) and `order` (`ASC` or `DESC`).
 
 = [crowdfunding_campaign] =
-Displays one published campaign. Optional `id` selects the campaign.
+Displays one published campaign, including its enabled reward definitions. Optional `id` selects the campaign.
 
 = [crowdfunding_progress] =
 Displays the authoritative net confirmed raised amount, goal, percentage and progress bar. Optional `id` and `compact="yes"`.
+
+= [crowdfunding_rewards] =
+Displays enabled reward definitions for one published campaign. Optional `id` selects the campaign; on a campaign context the current campaign is used. Configured claim limits may be shown, but claimed/remaining availability is intentionally absent until the claims ledger exists.
 
 = [crowdfunding_contribute] =
 Displays the WooCommerce-backed contribution form for a published, open campaign. Optional `id` selects the campaign.
@@ -149,7 +159,7 @@ Displays the editor for one campaign owned by the current user. Only draft and p
 Displays authenticated reward management for one campaign owned by the current user. Optional `id` selects the campaign; without it, `cfwp_campaign_id` can select the campaign. Only draft and pending campaigns are manageable.
 
 = [crowdfunding_promoter_dashboard] =
-Displays the current user's draft, pending and published campaigns. Optional `per_page` (1–50) and `edit_url` attributes.
+Displays the current user's draft, pending and published campaigns. Optional `per_page` (1–50), `edit_url` and `rewards_url` attributes.
 
 == Frequently Asked Questions ==
 
@@ -163,9 +173,13 @@ No. Reward definitions belong to the generic crowdfunding Core. WooCommerce rema
 
 = Can a promoter manage rewards on a published campaign? =
 
-Not through the 0.4.1 frontend reward manager. That surface is intentionally restricted to the current user's own draft or pending campaigns so reward definitions are finalized before publication.
+Not through the frontend reward manager. That surface is intentionally restricted to the current user's own draft or pending campaigns so reward definitions are finalized before publication.
 
-= Does managing a reward create a claim or reserve stock? =
+= Does the public reward list show how many rewards remain? =
+
+No. A configured total claim limit may be displayed, but claimed and remaining availability require a dedicated claims ledger. Version 0.4.2 does not invent those values.
+
+= Does managing or displaying a reward create a claim or reserve stock? =
 
 No. `claim_limit` is configuration only. Actual claimed/remaining availability will be derived from a dedicated claims ledger.
 
@@ -190,6 +204,14 @@ Yes. WooCommerce order/refund integration uses WooCommerce CRUD objects rather t
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.4.2 =
+* Added public `[crowdfunding_rewards]` presentation for enabled rewards on published campaigns.
+* Added automatic reward blocks to campaign detail output and native campaign permalinks.
+* Reward cards display title, minimum contribution, description and configured total claim limit when present.
+* Preserved configured reward ordering by sort order, minimum contribution and stable ID.
+* Public reward presentation does not expose claimed or remaining availability before the claims ledger exists.
+* Kept public Rewards independent from WooCommerce checkout, contribution accounting and refund accounting.
 
 = 0.4.1 =
 * Added authenticated `[crowdfunding_manage_rewards]` frontend management for rewards on owned draft/pending campaigns.
