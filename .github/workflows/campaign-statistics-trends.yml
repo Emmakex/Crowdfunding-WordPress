@@ -1,0 +1,68 @@
+name: Campaign Statistics Trends
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  campaign-statistics-trends-contract:
+    name: Campaign statistics trend authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify trends remain bounded, aggregate and creation-period based
+        shell: bash
+        run: |
+          set -euo pipefail
+          query='includes/class-campaign-statistics-query.php'
+          surface='includes/class-campaign-statistics.php'
+          readme='readme.txt'
+
+          grep -Fq 'private const MAX_RANGE_DAYS = 366;' "$query"
+          grep -Fq 'public function trends_for_campaign(' "$query"
+          grep -Fq "in_array( \$bucket, array( 'day', 'week', 'month' ), true )" "$query"
+          grep -Fq 'DATE(c.created_at)' "$query"
+          grep -Fq 'WEEKDAY(c.created_at)' "$query"
+          grep -Fq 'MONTH(c.created_at)' "$query"
+          grep -Fq 'c.created_at >= %s' "$query"
+          grep -Fq 'c.created_at <= %s' "$query"
+          grep -Fq 'CASE WHEN c.status = %s THEN c.amount - COALESCE(r.refunded, 0) ELSE 0 END' "$query"
+          grep -Fq 'Contribution_Adjustments::TYPE_REFUND' "$query"
+          grep -Fq 'Contribution_Adjustments::STATUS_APPLIED' "$query"
+
+          grep -Fq "private const QUERY_FROM        = 'cfwp_stats_from';" "$surface"
+          grep -Fq "private const QUERY_TO          = 'cfwp_stats_to';" "$surface"
+          grep -Fq "private const QUERY_BUCKET      = 'cfwp_stats_bucket';" "$surface"
+          grep -Fq 'method="get"' "$surface"
+          grep -Fq 'Date ranges are bounded to 366 days.' "$surface"
+          grep -Fq 'It is not a reconstructed historical balance for that past date.' "$surface"
+          grep -Fq 'Version 0.5.2 adds bounded contribution trends' "$readme"
+
+          if grep -Fq 'c.updated_at' "$query"; then
+            echo 'Contribution updated_at is not historical transition evidence and must not drive trend buckets.'
+            exit 1
+          fi
+
+          if grep -Eq 'admin_post_|\$_POST|woocommerce|\bwc_' "$surface" "$query"; then
+            echo 'Campaign statistics trends must remain read-only and WooCommerce-independent.'
+            exit 1
+          fi
+
+          if grep -Eq 'INSERT|UPDATE|DELETE|START TRANSACTION|COMMIT|ROLLBACK' "$query"; then
+            echo 'Campaign statistics trends must remain SELECT-only.'
+            exit 1
+          fi
+
+          if grep -Eiq 'user_id|user_email|email|billing|shipping|phone|customer|source_reference' "$query"; then
+            echo 'Campaign statistics trends must remain aggregate and free of supporter identity or PII.'
+            exit 1
+          fi
+
+          if grep -Eq 'SELECT[[:space:]]+\*' "$query"; then
+            echo 'Campaign statistics trends must not fetch supporter-level rows.'
+            exit 1
+          fi
