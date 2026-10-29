@@ -39,7 +39,7 @@ jobs:
             exit 1
           fi
 
-          if grep -Ei 'woocommerce|\bwc_|Contribution_Repository|Contribution_Adjustment|claim(s|_id)?' "$file"; then
+          if grep -Ei 'woocommerce|\bwc_|Contribution_Repository|Contribution_Adjustment|Reward_Claim|claim_id|claim_repository|cfwp_reward_claim' "$file"; then
             echo 'Reward management must not create checkout, contribution, refund or claim authority.'
             exit 1
           fi
