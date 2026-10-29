@@ -245,9 +245,19 @@ final class Campaign_Editor {
 	}
 
 	private function is_owned_campaign( mixed $campaign ): bool {
-		return $campaign instanceof \WP_Post
-			&& Campaigns::POST_TYPE === $campaign->post_type
-			&& (int) $campaign->post_author === get_current_user_id();
+		if ( ! $campaign instanceof \WP_Post ) {
+			return false;
+		}
+
+		if ( Campaigns::POST_TYPE !== $campaign->post_type ) {
+			return false;
+		}
+
+		if ( (int) $campaign->post_author !== get_current_user_id() ) {
+			return false;
+		}
+
+		return true;
 	}
 
 	private function can_edit_campaign( mixed $campaign ): bool {
