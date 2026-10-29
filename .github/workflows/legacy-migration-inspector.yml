@@ -1,0 +1,53 @@
+name: Legacy Migration Inspector
+
+on:
+  pull_request:
+    paths:
+      - 'includes/compat/class-legacy-migration-inspector.php'
+      - 'includes/compat/class-legacy-migration-admin.php'
+      - 'includes/class-plugin.php'
+      - 'crowdfunding-wordpress.php'
+      - '.github/workflows/legacy-migration-inspector.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  legacy-migration-inspector:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify migration discovery remains isolated and read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          inspector='includes/compat/class-legacy-migration-inspector.php'
+          admin='includes/compat/class-legacy-migration-admin.php'
+          bootstrap='crowdfunding-wordpress.php'
+          plugin='includes/class-plugin.php'
+
+          grep -Fq "final class Legacy_Migration_Inspector" "$inspector"
+          grep -Fq "SOURCE_POST_TYPE = 'fr' . '_project'" "$inspector"
+          grep -Fq "SOURCE_TABLE_SUFFIX = 'fr' . '_cf_contributions'" "$inspector"
+          grep -Fq "'write_enabled'                 => false" "$inspector"
+          grep -Fq "SHOW COLUMNS FROM" "$inspector"
+          grep -Fq "final class Legacy_Migration_Admin" "$admin"
+          grep -Fq "current_user_can( 'manage_options' )" "$admin"
+          grep -Fq "includes/compat/class-legacy-migration-inspector.php" "$bootstrap"
+          grep -Fq "includes/compat/class-legacy-migration-admin.php" "$bootstrap"
+          grep -Fq "Compat\\Legacy_Migration_Admin" "$plugin"
+
+          if grep -Eiq 'wp_insert_post|wp_update_post|update_post_meta|add_post_meta|delete_post_meta|\$wpdb->(insert|update|delete|replace)|dbDelta|set_transient|update_option|add_option|delete_option' "$inspector" "$admin"; then
+            echo 'Migration inspection must remain read-only.' >&2
+            exit 1
+          fi
+
+          if grep -RInE --include='*.php' 'CulturalFunding|Financial Rocks|\bfr_' includes crowdfunding-wordpress.php; then
+            echo 'Reference implementation identifiers must not leak into generic PHP Core.' >&2
+            exit 1
+          fi
+
+          php -l "$inspector"
+          php -l "$admin"
+          php -l "$plugin"
+          php -l "$bootstrap"
