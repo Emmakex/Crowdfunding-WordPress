@@ -1,0 +1,49 @@
+name: Notification Delivery Intent
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  notification-delivery-intent-contract:
+    name: Delivery intent contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify delivery intents remain channel-neutral, idempotent and read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='includes/class-notification-delivery-intents.php'
+          plugin='includes/class-plugin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq "final class Notification_Delivery_Intents" "$file"
+          grep -Fq "cfwp_notification_recipients_resolved" "$file"
+          grep -Fq "cfwp_notification_delivery_intent" "$file"
+          grep -Fq "public static function build( array \$event, array \$recipients ): array" "$file"
+          grep -Fq "'intent_key'" "$file"
+          grep -Fq "'message_key'" "$file"
+          grep -Fq "'event_key'" "$file"
+          grep -Fq "Notification_Recipient_Resolver::TYPE_WP_USER" "$file"
+          grep -Fq "Notification_Delivery_Intents::register();" "$plugin"
+          grep -Fq "includes/class-notification-delivery-intents.php" "$bootstrap"
+
+          if grep -Eiq 'wp_mail|smtp|mailgun|sendgrid|brevo|twilio|whatsapp|woocommerce|\bwc_' "$file"; then
+            echo 'Delivery intents must remain transport-neutral and independent from commerce adapters.' >&2
+            exit 1
+          fi
+
+          if grep -Eiq 'user_email|billing_|shipping_|first_name|last_name|display_name|phone' "$file"; then
+            echo 'Delivery intents must contain stable recipient references, not PII or channel addresses.' >&2
+            exit 1
+          fi
+
+          if grep -Eq 'update_post_meta[[:space:]]*\(|add_post_meta[[:space:]]*\(|delete_post_meta[[:space:]]*\(|wp_update_post[[:space:]]*\(|\$wpdb->(insert|update|delete)[[:space:]]*\(' "$file"; then
+            echo 'Delivery intent construction must remain read-only.' >&2
+            exit 1
+          fi
