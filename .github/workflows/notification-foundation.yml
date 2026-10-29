@@ -1,0 +1,62 @@
+name: Notification Foundation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  notification-foundation-contract:
+    name: Notification event authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify channel-neutral read-only notification events
+        shell: bash
+        run: |
+          set -euo pipefail
+          bridge='includes/class-notification-events.php'
+          plugin='includes/class-plugin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq "final class Notification_Events" "$bridge"
+          grep -Fq "public const SCHEMA_VERSION = '1';" "$bridge"
+          grep -Fq "do_action( 'cfwp_notification_event', \$event );" "$bridge"
+          grep -Fq "'schema_version' => self::SCHEMA_VERSION" "$bridge"
+          grep -Fq "'event_key'      => \$event_key" "$bridge"
+          grep -Fq "'campaign_id'    => \$campaign_id" "$bridge"
+
+          grep -Fq "cfwp_campaign_moderation_decision_recorded" "$bridge"
+          grep -Fq "cfwp_contribution_created" "$bridge"
+          grep -Fq "cfwp_reward_claim_created" "$bridge"
+          grep -Fq "cfwp_reward_fulfillment_created" "$bridge"
+          grep -Fq "cfwp_reward_fulfillment_status_updated" "$bridge"
+
+          grep -Fq "moderation-event:" "$bridge"
+          grep -Fq "contribution:" "$bridge"
+          grep -Fq "reward-claim:" "$bridge"
+          grep -Fq "fulfillment:" "$bridge"
+          grep -Fq "fulfillment-transition:" "$bridge"
+
+          grep -Fq "require_once CFWP_PLUGIN_DIR . 'includes/class-notification-events.php';" "$bootstrap"
+          grep -Fq "Notification_Events::register();" "$plugin"
+
+          if grep -Eiq 'wp_mail[[:space:]]*\(|phpmailer|smtp|sendgrid|mailgun|twilio|whatsapp' "$bridge"; then
+            echo '0.7.0 foundation must remain channel-neutral and must not send messages.' >&2
+            exit 1
+          fi
+          if grep -Eq '\$wpdb->(insert|update|delete|query)[[:space:]]*\(|update_post_meta[[:space:]]*\(|add_post_meta[[:space:]]*\(|delete_post_meta[[:space:]]*\(|wp_update_post[[:space:]]*\(' "$bridge"; then
+            echo 'Notification bridge must remain read-only and cannot become domain authority.' >&2
+            exit 1
+          fi
+          if grep -Eiq 'woocommerce|\bwc_' "$bridge"; then
+            echo 'Notification foundation must consume Core facts rather than WooCommerce directly.' >&2
+            exit 1
+          fi
+          if grep -Eiq 'email|billing|shipping|phone|address|customer' "$bridge"; then
+            echo 'Notification foundation envelope must not embed recipient PII.' >&2
+            exit 1
+          fi
