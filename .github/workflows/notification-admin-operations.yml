@@ -48,10 +48,14 @@ jobs:
           grep -Fq "Notification_Admin" "$plugin"
           grep -Fq "class-notification-settings.php" "$bootstrap"
           grep -Fq "class-notification-admin.php" "$bootstrap"
-          grep -Fq 'Version:           0.7.0' "$bootstrap"
-          grep -Fq "define( 'CFWP_VERSION', '0.7.0' );" "$bootstrap"
-          grep -Fq 'Stable tag: 0.7.0' "$readme"
-          grep -Fq '= 0.7.0 =' "$readme"
+
+          header_version="$(sed -n 's/^ \* Version:[[:space:]]*//p' "$bootstrap" | head -n1)"
+          constant_version="$(sed -n "s/^define( 'CFWP_VERSION', '\([^']*\)' );$/\1/p" "$bootstrap" | head -n1)"
+          stable_tag="$(sed -n 's/^Stable tag:[[:space:]]*//p' "$readme" | head -n1)"
+          test -n "$header_version"
+          test "$header_version" = "$constant_version"
+          test "$header_version" = "$stable_tag"
+          grep -Fq "= ${header_version} =" "$readme"
 
           if grep -Eiq 'billing_|shipping_|first_name|last_name|display_name' "$schema" "$repo" "$admin"; then
             echo 'Notification operations must not persist or expose commerce/customer PII.' >&2
