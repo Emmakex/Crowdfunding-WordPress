@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability`
+`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → independent fulfillment state`
 
-Campaigns, rewards, contributions, financial adjustments and reward claims are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but the authoritative claim, entitlement state and finite availability remain Core-derived facts.
+Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability and fulfillment remain separate Core authorities.
 
-As of **0.4.6**, the repository includes:
+As of **0.4.7**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -30,43 +30,32 @@ As of **0.4.6**, the repository includes:
 - frontend reward management and public reward presentation;
 - versioned reward-claims ledger with active/reversed lifecycle;
 - optional reward selection in the contribution form;
-- server-side reward/campaign/amount/availability revalidation before checkout;
 - classic-cart and Store API / Checkout Blocks reward validation;
-- explicit `_cfwp_reward_id` transport on the crowdfunding order item;
-- a separate WooCommerce reward adapter that creates a Core claim only after contribution synchronization reports `confirmed`;
-- reward eligibility based on the contribution amount net of applied refund adjustments;
-- automatic reversal when a partial refund drops the net contribution below the reward minimum;
-- safe reactivation after a refund adjustment is reversed, subject to confirmed status, current reward enablement and finite capacity;
-- transactional reactivation under the same reward-row lock used for finite claim creation;
+- reward eligibility based on contribution value net of applied refunds;
+- safe claim reversal/reactivation after refunds;
 - public finite reward availability derived from active claims;
-- finite availability shown consistently on public reward cards and in the contribution selector;
-- claim reversal when the corresponding contribution becomes `cancelled` or fully `refunded`;
+- versioned reward-fulfillment state separate from entitlement;
+- immutable fulfillment transition events with source/reference idempotency;
 - HPOS-safe WooCommerce order and refund adapters;
-- authoritative net confirmed raised amount and campaign progress on public surfaces.
+- authoritative net confirmed raised amount and campaign progress.
 
 ## Architecture principles
 
 - Generic WordPress Core; no CulturalFunding-specific business logic.
-- WooCommerce is the commerce/payment integration layer, not the owner of campaign, reward or claim domain logic.
-- Campaigns, promoters, contributions, adjustments, rewards, claims, moderation and reporting are separate responsibilities.
+- WooCommerce is the commerce/payment integration layer, not the owner of campaign, reward, claim or fulfillment domain logic.
 - Reward definitions are Core records, never WooCommerce products by definition.
-- Reward selection in the cart is transport evidence, not a reservation and not a claim.
-- Checkout validates current reward eligibility and finite capacity, but final finite-limit authority remains the transactional claim insert.
-- A claim is created only after the Core contribution has reached `confirmed`.
-- Order-item `_cfwp_reward_id` is evidence for the WooCommerce bridge; it is not the claim ledger itself.
-- Reward claims are historical Core records; reversal changes state but never deletes claim history.
-- Active reward eligibility uses the contribution amount net of applied refund adjustments, not the immutable gross contribution amount.
-- A partial refund that takes the net contribution below the reward minimum reverses the active entitlement while preserving claim history.
-- Reversing that refund may reactivate the same historical claim only after full eligibility is revalidated.
-- Reactivation requires the contribution to be confirmed, the reward to be enabled, campaign/currency consistency, the net minimum to be met and finite capacity to remain available.
-- Finite-limit claim creation and reactivation both serialize against the reward row before counting active claims.
-- `source + source_reference` remains the external-event idempotency authority for claims.
-- A reward `claim_limit` is configuration; remaining capacity is derived from active claims rather than stored as mutable inventory.
-- Public finite availability is read from `Reward_Claim_Repository::remaining_for_reward()`; no public view or checkout surface stores its own counter.
-- Unlimited rewards expose no numeric availability counter; finite rewards expose only the derived remaining count.
-- If capacity changes between cart validation and payment confirmation, claim creation fails closed and emits a synchronization error; successful payment does not fabricate an entitlement.
+- Reward selection is transport evidence, not a reservation or claim.
+- Reward claims represent entitlement; fulfillment represents operational delivery state.
+- A claim is created only after the Core contribution reaches `confirmed`.
+- Reward claims are historical Core records; reversal changes state but never deletes history.
+- Finite availability is derived from active claims and never stored as mutable inventory.
+- Fulfillment does not own stock, payment state or reward eligibility.
+- Each claim can have at most one fulfillment record.
+- Fulfillment current state is stored for efficient reads, while every real transition is preserved in an immutable event ledger.
+- Fulfillment creation and forward progress require an active reward claim.
+- `fulfilled` is terminal; `cancelled → pending` is permitted only so a future entitlement reactivation can safely resume delivery without creating a second fulfillment row.
+- Fulfillment stores no billing, shipping or customer PII in this foundation.
 - Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
-- WooCommerce orders and refunds are accessed through CRUD APIs and HPOS-compatible boundaries.
 - Original contribution amounts are immutable; financial corrections are additive adjustment records.
 - Escaping, sanitization, capability checks, nonces and idempotency are mandatory.
 - Public APIs and persistent identifiers are compatibility contracts once released.

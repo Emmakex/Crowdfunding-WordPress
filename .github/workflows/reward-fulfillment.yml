@@ -1,0 +1,70 @@
+name: Reward Fulfillment
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  reward-fulfillment-contract:
+    name: Reward fulfillment authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify fulfillment remains claim-backed, auditable and commerce-neutral
+        shell: bash
+        run: |
+          set -euo pipefail
+          domain='includes/class-reward-fulfillments.php'
+          repo='includes/class-reward-fulfillment-repository.php'
+          bootstrap='crowdfunding-wordpress.php'
+          activator='includes/class-activator.php'
+          plugin='includes/class-plugin.php'
+
+          grep -Fq "return \$wpdb->prefix . 'cfwp_reward_fulfillments';" "$domain"
+          grep -Fq "return \$wpdb->prefix . 'cfwp_reward_fulfillment_events';" "$domain"
+          grep -Fq "UNIQUE KEY claim_id (claim_id)" "$domain"
+          grep -Fq "UNIQUE KEY source_reference (source,source_reference)" "$domain"
+          grep -Fq "STATUS_PENDING" "$domain"
+          grep -Fq "STATUS_PROCESSING" "$domain"
+          grep -Fq "STATUS_FULFILLED" "$domain"
+          grep -Fq "STATUS_CANCELLED" "$domain"
+
+          grep -Fq 'public function ensure_for_claim' "$repo"
+          grep -Fq 'public function transition' "$repo"
+          grep -Fq 'public function list_events' "$repo"
+          grep -Fq "Reward_Claims::STATUS_ACTIVE" "$repo"
+          grep -Fq "LIMIT 1 FOR UPDATE" "$repo"
+          grep -Fq "Reward_Fulfillments::STATUS_CANCELLED => array(" "$repo"
+          grep -Fq "Reward_Fulfillments::STATUS_PENDING" "$repo"
+          grep -Fq "Reward_Fulfillments::STATUS_FULFILLED => array()" "$repo"
+          grep -Fq "cfwp_reward_fulfillment_created" "$repo"
+          grep -Fq "cfwp_reward_fulfillment_status_updated" "$repo"
+
+          grep -Fq "includes/class-reward-fulfillments.php" "$bootstrap"
+          grep -Fq "includes/class-reward-fulfillment-repository.php" "$bootstrap"
+          grep -Fq "Reward_Fulfillments::install();" "$activator"
+          grep -Fq "Reward_Fulfillments::class, 'maybe_install'" "$plugin"
+
+          if grep -Ei 'woocommerce|\bwc_|order_id|refund_id' "$domain" "$repo"; then
+            echo 'Reward fulfillment Core must remain independent from WooCommerce order/refund authority.'
+            exit 1
+          fi
+
+          if grep -Ei 'billing_|shipping_|user_email|display_name|user_login|customer_' "$domain" "$repo"; then
+            echo 'Reward fulfillment foundation must not persist customer or shipping PII.'
+            exit 1
+          fi
+
+          if grep -Eq 'function[[:space:]]+delete|DELETE[[:space:]]+FROM' "$repo"; then
+            echo 'Fulfillment and transition history must not expose destructive deletion.'
+            exit 1
+          fi
+
+          if grep -Ei 'stock_remaining|remaining_for_reward|claim_limit' "$domain"; then
+            echo 'Fulfillment must not become reward inventory or availability authority.'
+            exit 1
+          fi
