@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.5.2
+Stable tag: 0.5.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,8 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Campaign statistics reuse authoritative refund-adjusted net funding totals and never expose supporter rows.
 * Bounded campaign contribution trends grouped by day, week or month across selectable date ranges.
 * Trend net values use current confirmed/refund-adjusted Core facts attributed to contribution creation periods.
+* Aggregate campaign fulfillment counts by pending, processing, fulfilled and cancelled Core state.
+* Pending-delivery workload and completion rate derived exclusively from Core fulfillment records.
 * Generic versioned rewards domain linked to campaigns.
 * Authenticated frontend reward management and public reward cards.
 * Versioned reward-claims ledger with active/reversed states and source/reference idempotency.
@@ -67,7 +69,7 @@ The Core remains independent from any single crowdfunding platform, payment gate
 14. Publish `[crowdfunding_manage_fulfillment]` on an authenticated page for campaign-scoped delivery operations.
 15. Add `[crowdfunding_fulfillment_audit]` to the same page or another authenticated page when immutable fulfillment history should be visible.
 16. Publish `[crowdfunding_contribution_dashboard]` on an authenticated account page so signed-in users can review their own account-linked contributions.
-17. Publish `[crowdfunding_campaign_statistics]` on an authenticated promoter page to show aggregate Core statistics and contribution trends for one authorized campaign.
+17. Publish `[crowdfunding_campaign_statistics]` on an authenticated promoter page to show aggregate Core statistics, fulfillment workload and contribution trends for one authorized campaign.
 
 == Contributions and adjustments ==
 
@@ -100,6 +102,10 @@ Version 0.5.2 adds bounded contribution trends to the same statistics surface. P
 Each trend bucket shows contributions created in that period, how many of those contributions are currently confirmed, and their current net confirmed value after current applied refund adjustments. The net value is attributed to contribution `created_at`; it is not presented as a reconstructed historical balance because Core does not yet keep an immutable event ledger for every contribution status transition.
 
 `updated_at` is therefore not treated as evidence of when a contribution historically became confirmed, refunded or cancelled. Trend filters are read-only selectors and campaign authorization is completed before the aggregate query runs.
+
+Version 0.5.3 adds aggregate reward-fulfillment statistics to the same authorized campaign surface. Counts come only from `cfwp_reward_fulfillments`, joined through reward claim and reward ownership to the campaign; WooCommerce order status is never used as fulfillment authority.
+
+The surface shows `pending`, `processing`, `fulfilled` and `cancelled` counts. Pending delivery is `pending + processing`. The completion rate is `fulfilled / (pending + processing + fulfilled)` and deliberately excludes `cancelled` fulfillment from the denominator because cancelled entitlement no longer represents active delivery workload. These metrics are read-only and do not affect entitlement, reward availability or fulfillment lifecycle state.
 
 == Rewards ==
 
@@ -202,7 +208,7 @@ Displays the WooCommerce-backed contribution form for a published, open campaign
 Displays the authenticated current user's account-linked contributions, net refund-adjusted amount and Core reward entitlement. Optional `per_page` accepts 1–24. Account identity always comes from the current WordPress session.
 
 = [crowdfunding_campaign_statistics] =
-Displays aggregate statistics and bounded day/week/month contribution trends for one authorized campaign. Optional `id` selects the campaign; otherwise it uses `cfwp_campaign_id`. Promoters can view only owned campaigns and no supporter-level rows are returned.
+Displays aggregate contribution, reward-entitlement and fulfillment statistics plus bounded day/week/month contribution trends for one authorized campaign. Optional `id` selects the campaign; otherwise it uses `cfwp_campaign_id`. Promoters can view only owned campaigns and no supporter-level rows are returned.
 
 = [crowdfunding_promoter_register] =
 Displays promoter registration when WordPress user registration is enabled.
@@ -247,6 +253,10 @@ No. Campaign statistics return aggregate counts and Core totals only. They do no
 
 No. Version 0.5.2 groups contributions by their creation period and shows their current confirmed/refund-adjusted net value. Crowdfunding WordPress does not yet keep a complete immutable contribution-status event ledger, so `updated_at` is not used to invent historical confirmation/refund timing.
 
+= How is the fulfillment completion rate calculated? =
+
+Version 0.5.3 counts Core fulfillment records only. Pending delivery is `pending + processing`. Completion rate is `fulfilled / (pending + processing + fulfilled)`. Cancelled fulfillment is shown separately but excluded from the denominator because it is no longer active delivery workload.
+
 = Are rewards WooCommerce products? =
 
 No. Reward definitions, claims and fulfillment belong to the generic crowdfunding Core. WooCommerce transports payment/order lifecycle evidence.
@@ -288,6 +298,14 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.5.3 =
+* Added aggregate campaign fulfillment statistics to `[crowdfunding_campaign_statistics]`.
+* Added pending, processing, fulfilled and cancelled Core fulfillment counts.
+* Added pending-delivery workload as `pending + processing`.
+* Added completion rate as `fulfilled / (pending + processing + fulfilled)`, excluding cancelled fulfillment from active delivery workload.
+* Kept fulfillment statistics read-only, campaign-scoped, WooCommerce-independent and free of supporter PII.
+* Kept fulfillment statistics observational only: they do not change entitlement, availability or fulfillment lifecycle state.
 
 = 0.5.2 =
 * Added bounded campaign contribution trends to `[crowdfunding_campaign_statistics]`.
