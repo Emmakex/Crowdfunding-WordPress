@@ -1,0 +1,53 @@
+name: Notification Recipient Resolution
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  recipient-resolution-contract:
+    name: Recipient resolution contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify recipient resolution remains read-only and channel-neutral
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='includes/class-notification-recipient-resolver.php'
+          plugin='includes/class-plugin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq "final class Notification_Recipient_Resolver" "$file"
+          grep -Fq "public const TYPE_WP_USER = 'wp_user';" "$file"
+          grep -Fq "public const ROLE_CAMPAIGN_OWNER = 'campaign_owner';" "$file"
+          grep -Fq "public const ROLE_CONTRIBUTOR" "$file"
+          grep -Fq "public static function resolve( array \$event ): array" "$file"
+          grep -Fq "get_post( \$campaign_id )" "$file"
+          grep -Fq "Contribution_Repository()" "$file"
+          grep -Fq "Reward_Claim_Repository()" "$file"
+          grep -Fq "Reward_Fulfillment_Repository()" "$file"
+          grep -Fq "get_userdata( \$owner_id )" "$file"
+          grep -Fq "get_userdata( \$contributor_id )" "$file"
+          grep -Fq "cfwp_notification_recipients_resolved" "$file"
+          grep -Fq "Notification_Recipient_Resolver::register();" "$plugin"
+          grep -Fq "includes/class-notification-recipient-resolver.php" "$bootstrap"
+
+          if grep -Eiq 'wp_mail|smtp|mailgun|sendgrid|brevo|twilio|whatsapp|woocommerce|\bwc_' "$file"; then
+            echo 'Recipient resolution must remain channel-neutral and independent from WooCommerce.' >&2
+            exit 1
+          fi
+
+          if grep -Eiq 'user_email|billing_|shipping_|first_name|last_name|display_name' "$file"; then
+            echo 'Recipient resolution must expose stable user references, not PII or delivery addresses.' >&2
+            exit 1
+          fi
+
+          if grep -Eq 'update_post_meta[[:space:]]*\(|add_post_meta[[:space:]]*\(|delete_post_meta[[:space:]]*\(|wp_update_post[[:space:]]*\(|\$wpdb->(insert|update|delete)[[:space:]]*\(' "$file"; then
+            echo 'Recipient resolution must remain read-only.' >&2
+            exit 1
+          fi
