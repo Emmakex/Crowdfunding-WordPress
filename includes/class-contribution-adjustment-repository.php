@@ -144,6 +144,37 @@ final class Contribution_Adjustment_Repository {
 		return self::subtract_decimals( $original, $refunded );
 	}
 
+	public function net_confirmed_total_for_campaign( int $campaign_id ): string {
+		global $wpdb;
+
+		$campaign_id = absint( $campaign_id );
+		if ( $campaign_id <= 0 ) {
+			return '0.00000000';
+		}
+
+		$contributions_table = Contributions::table_name();
+		$adjustments_table   = Contribution_Adjustments::table_name();
+		$total               = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COALESCE(SUM(c.amount - COALESCE(r.refunded, 0)), 0)
+				FROM {$contributions_table} c
+				LEFT JOIN (
+					SELECT contribution_id, SUM(amount) AS refunded
+					FROM {$adjustments_table}
+					WHERE type = %s AND status = %s
+					GROUP BY contribution_id
+				) r ON r.contribution_id = c.id
+				WHERE c.campaign_id = %d AND c.status = %s",
+				Contribution_Adjustments::TYPE_REFUND,
+				Contribution_Adjustments::STATUS_APPLIED,
+				$campaign_id,
+				Contributions::STATUS_CONFIRMED
+			)
+		);
+
+		return self::normalize_zero( $total );
+	}
+
 	public function reverse_by_source_prefix( string $source, string $source_reference_prefix ): bool|\WP_Error {
 		global $wpdb;
 
@@ -219,7 +250,7 @@ final class Contribution_Adjustment_Repository {
 			return strlen( $left_digits ) < strlen( $right_digits ) ? -1 : 1;
 		}
 
-		return $left_digits <=> $right_digits;
+		return strcmp( $left_digits, $right_digits );
 	}
 
 	private static function subtract_decimals( string $left, string $right ): string {
@@ -227,12 +258,15 @@ final class Contribution_Adjustment_Repository {
 			return '0.00000000';
 		}
 
-		$left_digits  = str_pad( self::decimal_digits( $left ), max( strlen( self::decimal_digits( $left ) ), strlen( self::decimal_digits( $right ) ) ), '0', STR_PAD_LEFT );
-		$right_digits = str_pad( self::decimal_digits( $right ), strlen( $left_digits ), '0', STR_PAD_LEFT );
-		$borrow       = 0;
-		$result       = '';
+		$left_digits_raw  = self::decimal_digits( $left );
+		$right_digits_raw = self::decimal_digits( $right );
+		$length           = max( strlen( $left_digits_raw ), strlen( $right_digits_raw ), 9 );
+		$left_digits      = str_pad( $left_digits_raw, $length, '0', STR_PAD_LEFT );
+		$right_digits     = str_pad( $right_digits_raw, $length, '0', STR_PAD_LEFT );
+		$borrow           = 0;
+		$result           = '';
 
-		for ( $index = strlen( $left_digits ) - 1; $index >= 0; $index-- ) {
+		for ( $index = $length - 1; $index >= 0; $index-- ) {
 			$digit = (int) $left_digits[ $index ] - $borrow - (int) $right_digits[ $index ];
 			if ( $digit < 0 ) {
 				$digit += 10;
@@ -250,7 +284,7 @@ final class Contribution_Adjustment_Repository {
 	}
 
 	private static function decimal_digits( string $value ): string {
-		$value = self::normalize_zero( $value );
+		$value  = self::normalize_zero( $value );
 		$digits = ltrim( str_replace( '.', '', $value ), '0' );
 		return '' === $digits ? '0' : $digits;
 	}
