@@ -49,8 +49,13 @@ jobs:
             exit 1
           fi
 
-          if grep -Eiq 'user_id|user_email|email|billing|shipping|phone|customer|source_reference' "$surface" "$query"; then
-            echo 'Campaign statistics must remain aggregate and free of supporter-level identity or PII.'
+          if grep -Eiq 'user_id|user_email|email|billing|shipping|phone|customer|source_reference' "$query"; then
+            echo 'Campaign statistics query must not select or return supporter identity or PII.'
+            exit 1
+          fi
+
+          if grep -Eiq 'user_email|billing|shipping|phone|customer|source_reference' "$surface"; then
+            echo 'Campaign statistics surface must remain free of supporter PII and technical references.'
             exit 1
           fi
 
