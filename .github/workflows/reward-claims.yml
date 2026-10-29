@@ -1,0 +1,68 @@
+name: Reward Claims
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  reward-claims-contract:
+    name: Reward claims ledger contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify claims remain generic, idempotent and limit-safe
+        shell: bash
+        run: |
+          set -euo pipefail
+          domain='includes/class-reward-claims.php'
+          repo='includes/class-reward-claim-repository.php'
+          bootstrap='crowdfunding-wordpress.php'
+          activator='includes/class-activator.php'
+          plugin='includes/class-plugin.php'
+
+          grep -Fq "return \$wpdb->prefix . 'cfwp_reward_claims';" "$domain"
+          grep -Fq "UNIQUE KEY source_reference (source,source_reference)" "$domain"
+          grep -Fq "UNIQUE KEY reward_contribution (reward_id,contribution_id)" "$domain"
+          grep -Fq "public const STATUS_ACTIVE   = 'active';" "$domain"
+          grep -Fq "public const STATUS_REVERSED = 'reversed';" "$domain"
+
+          grep -Fq 'public function create(' "$repo"
+          grep -Fq 'public function reverse(' "$repo"
+          grep -Fq 'public function active_count_for_reward(' "$repo"
+          grep -Fq 'public function remaining_for_reward(' "$repo"
+          grep -Fq 'find_by_source' "$repo"
+          grep -Fq 'find_by_reward_contribution' "$repo"
+          grep -Fq 'cfwp_reward_claim_idempotency_conflict' "$repo"
+          grep -Fq 'cfwp_reward_claim_limit_reached' "$repo"
+          grep -Fq "Contributions::STATUS_CONFIRMED" "$repo"
+          grep -Fq 'cfwp_reward_claim_campaign_mismatch' "$repo"
+          grep -Fq 'cfwp_reward_claim_below_minimum' "$repo"
+          grep -Fq 'cfwp_reward_claim_currency_mismatch' "$repo"
+          grep -Fq "START TRANSACTION" "$repo"
+          grep -Fq "FOR UPDATE" "$repo"
+          grep -Fq "Reward_Claims::STATUS_ACTIVE" "$repo"
+          grep -Fq "Reward_Claims::STATUS_REVERSED" "$repo"
+
+          grep -Fq "Reward_Claims::install();" "$activator"
+          grep -Fq "Reward_Claims::class, 'maybe_install'" "$plugin"
+          grep -Fq "includes/class-reward-claims.php" "$bootstrap"
+          grep -Fq "includes/class-reward-claim-repository.php" "$bootstrap"
+
+          if grep -Ei 'woocommerce|\bwc_|shop_order|get_post_meta\([^,]*order' "$domain" "$repo"; then
+            echo 'Generic reward claims must not depend on WooCommerce or order storage.'
+            exit 1
+          fi
+
+          if grep -Ei 'function[[:space:]]+delete|public[[:space:]]+function[[:space:]]+delete' "$repo"; then
+            echo 'Reward claims are historical records and must not expose destructive deletion.'
+            exit 1
+          fi
+
+          if grep -Ei 'stock_remaining|remaining_stock|claimed_count[[:space:]]+(int|bigint|smallint|tinyint)' "$domain"; then
+            echo 'Reward availability must be derived from active claims, not duplicated counters.'
+            exit 1
+          fi
