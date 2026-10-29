@@ -1,0 +1,90 @@
+name: Campaign Moderation Decisions
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  moderation-decisions:
+    name: Campaign moderation decision authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify moderation decisions remain transactional, idempotent and editorially separate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          authority="includes/class-campaign-moderation.php"
+          events="includes/class-campaign-moderation-events.php"
+          repository="includes/class-campaign-moderation-repository.php"
+          activator="includes/class-activator.php"
+          plugin="includes/class-plugin.php"
+          bootstrap="crowdfunding-wordpress.php"
+
+          grep -Fq "public static function decision_statuses(): array" "$authority"
+          grep -Fq "self::STATUS_IN_REVIEW" "$authority"
+          grep -Fq "self::STATUS_APPROVED" "$authority"
+          grep -Fq "self::STATUS_REJECTED" "$authority"
+          grep -Fq "public static function can_decide_transition" "$authority"
+          grep -Fq "return self::can_transition( \$from, \$to );" "$authority"
+
+          grep -Fq "private const OPTION_SCHEMA_VERSION = 'cfwp_campaign_moderation_events_schema_version';" "$events"
+          grep -Fq "private const SCHEMA_VERSION        = '1';" "$events"
+          grep -Fq "cfwp_campaign_moderation_events" "$events"
+          grep -Fq "actor_user_id bigint(20) unsigned NOT NULL" "$events"
+          grep -Fq "from_status varchar(20) NOT NULL" "$events"
+          grep -Fq "to_status varchar(20) NOT NULL" "$events"
+          grep -Fq "UNIQUE KEY source_reference (source,source_reference)" "$events"
+          grep -Fq "KEY campaign_created (campaign_id,created_at)" "$events"
+
+          grep -Fq "public function transition( int \$campaign_id, string \$to_status, string \$source, string \$source_reference )" "$repository"
+          grep -Fq "current_user_can( 'moderate_cfwp_campaigns' )" "$repository"
+          grep -Fq "get_current_user_id()" "$repository"
+          grep -Fq "Campaign_Moderation::decision_statuses()" "$repository"
+          grep -Fq "Campaign_Moderation::can_decide_transition( \$from_status, \$to_status )" "$repository"
+          grep -Fq "START TRANSACTION" "$repository"
+          grep -Fq "FOR UPDATE" "$repository"
+          grep -Fq "ROLLBACK" "$repository"
+          grep -Fq "COMMIT" "$repository"
+          grep -Fq "Campaign_Moderation_Events::table_name()" "$repository"
+          grep -Fq "'actor_user_id'    => \$actor_user_id" "$repository"
+          grep -Fq "'source_reference' => \$source_reference" "$repository"
+          grep -Fq "cfwp_moderation_decision_idempotency_conflict" "$repository"
+          grep -Fq "public function list_events( int \$campaign_id ): array" "$repository"
+          grep -Fq "ORDER BY id ASC" "$repository"
+          grep -Fq "cfwp_campaign_moderation_decision_recorded" "$repository"
+
+          grep -Fq "Campaign_Moderation_Events::install();" "$activator"
+          grep -Fq "Campaign_Moderation_Events::class, 'maybe_install'" "$plugin"
+          grep -Fq "includes/class-campaign-moderation-events.php" "$bootstrap"
+          grep -Fq "includes/class-campaign-moderation-repository.php" "$bootstrap"
+
+          if grep -Eq 'wp_update_post|wp_publish_post|wp_transition_post_status|transition_post_status|publish_cfwp_campaigns' "$repository"; then
+            echo 'Moderation decision authority must not mutate WordPress editorial publication.'
+            exit 1
+          fi
+
+          if grep -Eq 'woocommerce|\bwc_|Contribution|Reward_|Fulfillment' "$repository"; then
+            echo 'Moderation decisions must remain independent from commerce and reward domains.'
+            exit 1
+          fi
+
+          if grep -Eq 'DELETE FROM.*cfwp_campaign_moderation_events|TRUNCATE.*cfwp_campaign_moderation_events' "$repository" "$events"; then
+            echo 'Moderation decision events are immutable.'
+            exit 1
+          fi
+
+          if grep -Fq '$wpdb->update( Campaign_Moderation_Events::table_name()' "$repository"; then
+            echo 'Moderation decision events must never be updated.'
+            exit 1
+          fi
+
+          if grep -Fq '$wpdb->delete( Campaign_Moderation_Events::table_name()' "$repository"; then
+            echo 'Moderation decision events must never be deleted.'
+            exit 1
+          fi

@@ -43,6 +43,15 @@ final class Campaign_Moderation {
 		);
 	}
 
+	/** @return string[] */
+	public static function decision_statuses(): array {
+		return array(
+			self::STATUS_IN_REVIEW,
+			self::STATUS_APPROVED,
+			self::STATUS_REJECTED,
+		);
+	}
+
 	public static function sanitize_status( mixed $value ): string {
 		$status = sanitize_key( (string) $value );
 		return in_array( $status, self::statuses(), true ) ? $status : '';
@@ -179,6 +188,16 @@ final class Campaign_Moderation {
 
 		$transitions = self::allowed_transitions();
 		return isset( $transitions[ $from ] ) && in_array( $to, $transitions[ $from ], true );
+	}
+
+	public static function can_decide_transition( string $from, string $to ): bool {
+		$from = self::sanitize_status( $from );
+		$to   = self::sanitize_status( $to );
+		if ( '' === $from || ! in_array( $to, self::decision_statuses(), true ) ) {
+			return false;
+		}
+
+		return self::can_transition( $from, $to );
 	}
 
 	public static function can_edit_status( mixed $allowed, string $meta_key, int $post_id ): bool {

@@ -91,6 +91,7 @@ final class Plugin {
 		add_action( 'init', array( Rewards::class, 'maybe_install' ), 4 );
 		add_action( 'init', array( Reward_Claims::class, 'maybe_install' ), 5 );
 		add_action( 'init', array( Reward_Fulfillments::class, 'maybe_install' ), 6 );
+		add_action( 'init', array( Campaign_Moderation_Events::class, 'maybe_install' ), 7 );
 		add_action( 'init', array( $this->campaigns, 'register_post_type' ) );
 		add_action( 'init', array( $this->campaigns, 'register_meta' ) );
 		add_action( 'init', array( Campaign_Moderation::class, 'register_meta' ) );

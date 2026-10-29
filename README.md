@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → independent Core moderation state → WordPress editorial publication → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit/health → account/campaign/portfolio dashboards`
+`Campaign → independent Core moderation state + immutable moderator decisions → WordPress editorial publication → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit/health → account/campaign/portfolio dashboards`
 
 Campaigns, campaign moderation, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WordPress `post_status` remains the editorial publication/visibility mechanism and is not the moderation authority. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but moderation, entitlement, availability, fulfillment, reconciliation health, account dashboards, campaign statistics and promoter portfolio statistics remain separate Core authorities.
 
-As of **0.6.1**, the repository includes:
+As of **0.6.2**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - independent Core campaign moderation state with `submitted`, `in_review`, `approved` and `rejected` states;
@@ -31,6 +31,9 @@ As of **0.6.1**, the repository includes:
 - legacy WordPress `pending` campaigns classified as Core `submitted` without changing editorial status;
 - legacy WordPress `publish` campaigns grandfathered as Core `approved` for compatibility, without claiming evidence of a historical moderation decision;
 - explicit protection against backfilling draft/private/trash campaigns or overwriting any existing moderation metadata;
+- transactional moderator decision authority for `submitted → in_review/approved/rejected` and `in_review → approved/rejected`;
+- immutable campaign-moderation decision events with moderator user ID, source/reference idempotency and chronological reads;
+- atomic Core moderation state + audit-event commits with rollback on failure;
 - promoter registration, submission, editing and dashboard flows;
 - payment-provider-neutral contribution ledger with idempotency;
 - immutable original contribution amounts and refund-safe adjustments;
@@ -78,7 +81,14 @@ As of **0.6.1**, the repository includes:
 - Existing valid or invalid moderation metadata is never overwritten by the backfill; invalid stored state remains fail-closed for administrator review.
 - Backfill runs in bounded batches, is safe to retry, uses unique meta insertion and records completion only after no eligible legacy campaign remains.
 - Promoters never receive `moderate_cfwp_campaigns`; moderation is a distinct administrative authority from campaign editing, fulfillment and publication.
-- The initial moderation graph is: no moderation state → `submitted`; `submitted` → `in_review`/`approved`/`rejected`; `in_review` → `approved`/`rejected`; `rejected` → `submitted`; `approved` is terminal in this foundation.
+- The moderation graph is: no moderation state → `submitted`; `submitted` → `in_review`/`approved`/`rejected`; `in_review` → `approved`/`rejected`; `rejected` → `submitted`; `approved` is terminal in this foundation.
+- Administrator decision authority accepts only `in_review`, `approved` and `rejected` as targets. `rejected → submitted` remains promoter resubmission, not a moderator decision.
+- Every moderator decision requires `moderate_cfwp_campaigns`, a signed-in actor and a stable `source + source_reference` idempotency key.
+- Current moderation state and immutable moderator-event history are committed in the same transaction; a failed event write rolls back the state transition.
+- Decision events store campaign ID, moderator WordPress user ID, previous/target state, source/reference and UTC timestamp, and are never updated or deleted by the moderation repository.
+- Replaying an existing source/reference is idempotent only when it identifies the same campaign and target state; conflicting reuse fails closed.
+- Missing, duplicated or invalid moderation metadata is never guessed during a moderator decision; it requires administrator review.
+- Legacy backfill classifications and ordinary promoter submissions are not retroactively fabricated as moderator decision events.
 - WooCommerce is the commerce/payment integration layer, not the owner of campaign, moderation, reward, claim, fulfillment or dashboard domain logic.
 - Reward definitions are Core records, never WooCommerce products by definition.
 - Reward selection is transport evidence, not a reservation or claim.
