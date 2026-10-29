@@ -1,0 +1,31 @@
+name: Release Version Consistency
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  release-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public release metadata stays aligned
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          plugin='crowdfunding-wordpress.php'
+          readme='readme.txt'
+
+          header_version="$(sed -n 's/^ \* Version:[[:space:]]*//p' "$plugin" | head -n1)"
+          constant_version="$(sed -n "s/^define( 'CFWP_VERSION', '\([^']*\)' );$/\1/p" "$plugin" | head -n1)"
+          stable_tag="$(sed -n 's/^Stable tag:[[:space:]]*//p' "$readme" | head -n1)"
+
+          test -n "$header_version"
+          test "$header_version" = "$constant_version"
+          test "$header_version" = "$stable_tag"
+          grep -Fq "= ${header_version} =" "$readme"
+          grep -Fq 'Text Domain:       crowdfunding-wordpress' "$plugin"
+          grep -Fq 'Domain Path:       /languages' "$plugin"
