@@ -15,7 +15,7 @@ final class Promoters {
 	public const ROLE = 'cfwp_promoter';
 
 	private const OPTION_SCHEMA_VERSION = 'cfwp_roles_schema_version';
-	private const SCHEMA_VERSION        = '2';
+	private const SCHEMA_VERSION        = '3';
 
 	/**
 	 * Install role changes once per schema version.
@@ -66,7 +66,8 @@ final class Promoters {
 
 	/**
 	 * Promoters can create/edit their own unpublished campaigns and operate
-	 * fulfillment for rewards belonging to campaigns they own.
+	 * fulfillment for rewards belonging to campaigns they own. Moderation and
+	 * publication remain separate administrative authorities.
 	 *
 	 * @return array<string,bool>
 	 */
@@ -77,6 +78,7 @@ final class Promoters {
 			'edit_cfwp_campaigns'            => true,
 			'delete_cfwp_campaigns'          => true,
 			'manage_cfwp_fulfillments'       => true,
+			'moderate_cfwp_campaigns'        => false,
 			'publish_cfwp_campaigns'         => false,
 			'edit_others_cfwp_campaigns'     => false,
 			'delete_others_cfwp_campaigns'   => false,
@@ -89,7 +91,8 @@ final class Promoters {
 	}
 
 	/**
-	 * Administrators retain full authority over campaign and fulfillment lifecycle.
+	 * Administrators retain full authority over campaign, moderation and
+	 * fulfillment lifecycle.
 	 *
 	 * @return string[]
 	 */
@@ -106,6 +109,7 @@ final class Promoters {
 			'edit_private_cfwp_campaigns',
 			'edit_published_cfwp_campaigns',
 			'manage_cfwp_fulfillments',
+			'moderate_cfwp_campaigns',
 		);
 	}
 }

@@ -90,6 +90,7 @@ final class Plugin {
 		add_action( 'init', array( Reward_Fulfillments::class, 'maybe_install' ), 6 );
 		add_action( 'init', array( $this->campaigns, 'register_post_type' ) );
 		add_action( 'init', array( $this->campaigns, 'register_meta' ) );
+		add_action( 'init', array( Campaign_Moderation::class, 'register_meta' ) );
 		add_action( 'init', array( $this, 'load_textdomain' ), 1 );
 		add_action( 'init', array( $this->campaign_progress, 'register' ) );
 		add_action( 'init', array( $this->reward_display, 'register' ) );

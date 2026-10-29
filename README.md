@@ -16,13 +16,17 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit/health → account/campaign/portfolio dashboards`
+`Campaign → independent Core moderation state → WordPress editorial publication → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit/health → account/campaign/portfolio dashboards`
 
-Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability, fulfillment, reconciliation health, account dashboards, campaign statistics and promoter portfolio statistics remain separate Core authorities.
+Campaigns, campaign moderation, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WordPress `post_status` remains the editorial publication/visibility mechanism and is not the moderation authority. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but moderation, entitlement, availability, fulfillment, reconciliation health, account dashboards, campaign statistics and promoter portfolio statistics remain separate Core authorities.
 
-As of **0.5.5**, the repository includes:
+As of **0.6.0**, the repository includes:
 
 - generic campaign domain and public campaign views;
+- independent Core campaign moderation state with `submitted`, `in_review`, `approved` and `rejected` states;
+- a moderation transition graph that does not publish or otherwise mutate WordPress editorial status;
+- a dedicated `moderate_cfwp_campaigns` authority granted to administrators and explicitly denied to promoters;
+- new frontend campaign submissions initialized as Core `submitted` while remaining WordPress `pending` editorial content;
 - promoter registration, submission, editing and dashboard flows;
 - payment-provider-neutral contribution ledger with idempotency;
 - immutable original contribution amounts and refund-safe adjustments;
@@ -61,7 +65,13 @@ As of **0.5.5**, the repository includes:
 ## Architecture principles
 
 - Generic WordPress Core; no CulturalFunding-specific business logic.
-- WooCommerce is the commerce/payment integration layer, not the owner of campaign, reward, claim, fulfillment or dashboard domain logic.
+- Campaign moderation state and WordPress editorial `post_status` are separate authorities.
+- Moderation state can describe review/approval/rejection but cannot itself publish, unpublish or change campaign visibility.
+- Absence of `_cfwp_moderation_status` means the campaign has not entered the new Core moderation lifecycle; 0.6.0 deliberately does not infer or backfill legacy campaign moderation from current `post_status`.
+- New frontend submissions remain WordPress `pending` and independently enter Core moderation as `submitted`.
+- Promoters never receive `moderate_cfwp_campaigns`; moderation is a distinct administrative authority from campaign editing, fulfillment and publication.
+- The initial moderation graph is: no moderation state → `submitted`; `submitted` → `in_review`/`approved`/`rejected`; `in_review` → `approved`/`rejected`; `rejected` → `submitted`; `approved` is terminal in this foundation.
+- WooCommerce is the commerce/payment integration layer, not the owner of campaign, moderation, reward, claim, fulfillment or dashboard domain logic.
 - Reward definitions are Core records, never WooCommerce products by definition.
 - Reward selection is transport evidence, not a reservation or claim.
 - Reward claims represent entitlement; fulfillment represents operational delivery state.
@@ -119,7 +129,7 @@ As of **0.5.5**, the repository includes:
 - **0.3.x** WooCommerce contribution flow, refund integrity and authoritative funding progress — complete.
 - **0.4.x** Rewards — complete.
 - **0.5.x** Contribution dashboards and campaign statistics — complete.
-- **0.6.x** Moderation and campaign workflow expansion.
+- **0.6.x** Moderation and campaign workflow expansion — in progress.
 - **0.7.x** Notifications and reporting.
 - **0.8.x** Internationalization and accessibility hardening.
 - **0.9.x** CulturalFunding compatibility/migration layer.
