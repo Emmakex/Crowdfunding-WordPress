@@ -90,6 +90,7 @@ final class Plugin {
 		add_action( 'init', array( $this->campaign_editor, 'register' ) );
 		add_action( 'init', array( $this->reward_manager, 'register' ) );
 		add_action( 'init', array( $this->reward_fulfillment_manager, 'register' ) );
+		add_action( 'init', array( Reward_Fulfillment_Audit::class, 'register' ) );
 		add_action( 'init', array( $this->promoter_dashboard, 'register' ) );
 		add_action( 'init', array( $this->promoter_registration, 'register' ) );
 
