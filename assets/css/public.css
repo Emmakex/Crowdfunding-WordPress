@@ -191,19 +191,25 @@
 }
 
 .cfwp-contribution-form input,
+.cfwp-contribution-form select,
 .cfwp-contribution-form button {
 	box-sizing: border-box;
 	min-height: 2.75rem;
 	font: inherit;
 }
 
-.cfwp-contribution-form input {
+.cfwp-contribution-form input,
+.cfwp-contribution-form select {
 	width: 100%;
 	padding: 0.7rem 0.8rem;
 	border: 1px solid currentColor;
 	border-radius: 0.35rem;
 	background: transparent;
 	color: inherit;
+}
+
+.cfwp-contribution-form select {
+	grid-column: 1 / -1;
 }
 
 .cfwp-contribution-form button {
@@ -343,6 +349,10 @@
 @media (max-width: 34rem) {
 	.cfwp-contribution-form {
 		grid-template-columns: 1fr;
+	}
+
+	.cfwp-contribution-form select {
+		grid-column: auto;
 	}
 
 	.cfwp-progress__summary {
