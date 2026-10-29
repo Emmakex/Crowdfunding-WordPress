@@ -33,6 +33,10 @@ final class Reward_Fulfillment_Backfill_Reconciler {
 		}
 
 		$claim_ids = $this->find_missing_active_claim_ids( $this->batch_size() );
+		if ( is_wp_error( $claim_ids ) ) {
+			$this->report_error( $claim_ids, 0 );
+			return;
+		}
 		if ( empty( $claim_ids ) ) {
 			$this->mark_complete();
 			return;
@@ -46,14 +50,19 @@ final class Reward_Fulfillment_Backfill_Reconciler {
 			);
 
 			if ( is_wp_error( $result ) ) {
-				do_action( 'cfwp_reward_fulfillment_backfill_error', $result, $claim_id );
+				$this->report_error( $result, $claim_id );
 				continue;
 			}
 
 			do_action( 'cfwp_reward_fulfillment_backfilled', (int) $result, $claim_id );
 		}
 
-		if ( empty( $this->find_missing_active_claim_ids( 1 ) ) ) {
+		$remaining = $this->find_missing_active_claim_ids( 1 );
+		if ( is_wp_error( $remaining ) ) {
+			$this->report_error( $remaining, 0 );
+			return;
+		}
+		if ( empty( $remaining ) ) {
 			$this->mark_complete();
 		}
 	}
@@ -63,8 +72,8 @@ final class Reward_Fulfillment_Backfill_Reconciler {
 		return max( 1, min( 200, $batch_size ) );
 	}
 
-	/** @return int[] */
-	private function find_missing_active_claim_ids( int $limit ): array {
+	/** @return int[]|\WP_Error */
+	private function find_missing_active_claim_ids( int $limit ): array|\WP_Error {
 		global $wpdb;
 
 		$limit = max( 1, min( 200, absint( $limit ) ) );
@@ -76,11 +85,24 @@ final class Reward_Fulfillment_Backfill_Reconciler {
 			)
 		);
 
+		if ( '' !== (string) $wpdb->last_error ) {
+			return new \WP_Error(
+				'cfwp_reward_fulfillment_backfill_query_failed',
+				__( 'The reward fulfillment backfill could not inspect historical claims safely.', 'crowdfunding-wordpress' )
+			);
+		}
 		if ( ! is_array( $rows ) ) {
-			return array();
+			return new \WP_Error(
+				'cfwp_reward_fulfillment_backfill_query_failed',
+				__( 'The reward fulfillment backfill returned an invalid historical claim result.', 'crowdfunding-wordpress' )
+			);
 		}
 
 		return array_values( array_filter( array_map( 'absint', $rows ) ) );
+	}
+
+	private function report_error( \WP_Error $error, int $claim_id ): void {
+		do_action( 'cfwp_reward_fulfillment_backfill_error', $error, absint( $claim_id ) );
 	}
 
 	private function mark_complete(): void {
