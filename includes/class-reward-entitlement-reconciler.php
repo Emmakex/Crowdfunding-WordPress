@@ -13,11 +13,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class Reward_Entitlement_Reconciler {
 	private Reward_Claim_Repository $claims;
-	private Contribution_Adjustment_Repository $adjustments;
 
 	public function __construct() {
-		$this->claims      = new Reward_Claim_Repository();
-		$this->adjustments = new Contribution_Adjustment_Repository();
+		$this->claims = new Reward_Claim_Repository();
 	}
 
 	/**
