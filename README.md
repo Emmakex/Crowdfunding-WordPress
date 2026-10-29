@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit → account/campaign dashboards`
+`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit/health → account/campaign dashboards`
 
-Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability, fulfillment, account dashboards and campaign statistics remain separate Core authorities.
+Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability, fulfillment, reconciliation health, account dashboards and campaign statistics remain separate Core authorities.
 
-As of **0.5.3**, the repository includes:
+As of **0.5.4**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -35,6 +35,8 @@ As of **0.5.3**, the repository includes:
 - trend net value derived from current confirmed contributions minus current applied refunds and attributed to contribution creation periods;
 - aggregate campaign fulfillment counts by pending, processing, fulfilled and cancelled Core state;
 - pending-delivery workload and fulfillment completion rate derived only from Core fulfillment rows;
+- read-only campaign-scoped fulfillment reconciliation health diagnostics;
+- aggregate detection of active claims missing fulfillment, active claims stuck cancelled, reversed claims still open and reversed-after-fulfilled exceptions;
 - generic versioned rewards domain linked to campaigns;
 - frontend reward management and public reward presentation;
 - versioned reward-claims ledger with active/reversed lifecycle;
@@ -80,6 +82,9 @@ As of **0.5.3**, the repository includes:
 - Fulfillment audit is a separate read-only surface using the same campaign authority and immutable event ledger.
 - Audit events are ordered chronologically and expose event ID, origin and stable source reference without introducing a second history store.
 - The audit component registers no write action and has no direct repository-transition, WooCommerce or SQL-write authority.
+- Fulfillment reconciliation health is a separate read-only aggregate surface; it never repairs records or exposes claim/fulfillment identities.
+- Health lifecycle drift is `active claim without fulfillment`, `active claim with cancelled fulfillment`, or `reversed claim still pending/processing`.
+- A reversed claim whose fulfillment is already `fulfilled` is counted separately as manual review because delivery is terminal and must not be undone automatically.
 - The contribution dashboard is authenticated and always scopes reads to `get_current_user_id()`; browser input cannot select another account.
 - Dashboard financial values come from the contribution and adjustment Core ledgers, not WooCommerce orders or editable user metadata.
 - Dashboard reward entitlement comes from Core reward claims; technical source references and customer PII are not exposed.
