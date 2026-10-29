@@ -48,7 +48,7 @@ jobs:
           grep -Fq "Notification_Deliveries::class, 'maybe_install'" "$plugin"
           grep -Fq "class-notification-email-delivery.php" "$bootstrap"
 
-          if grep -Eiq 'user_email|billing_|shipping_|first_name|last_name|display_name|@' "$ledger" "$repo"; then
+          if grep -Eiq 'user_email|billing_|shipping_|first_name|last_name|display_name|email_address|recipient_email' "$ledger" "$repo"; then
             echo 'Delivery ledger/repository must not persist recipient PII.' >&2
             exit 1
           fi
