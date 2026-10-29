@@ -1,0 +1,59 @@
+name: Legacy Migration Mapping
+
+on:
+  pull_request:
+    paths:
+      - 'includes/compat/class-legacy-migration-mapping.php'
+      - 'crowdfunding-wordpress.php'
+      - '.github/workflows/legacy-migration-mapping.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  legacy-migration-mapping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify explicit mapping remains fail-closed and read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='includes/compat/class-legacy-migration-mapping.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq 'final class Legacy_Migration_Mapping' "$file"
+          grep -Fq "public const STATUS_CONFIRMED = 'confirmed';" "$file"
+          grep -Fq "public const STATUS_UNCONFIRMED = 'unconfirmed';" "$file"
+          grep -Fq "'post_title'   => 'post_title'" "$file"
+          grep -Fq "'post_content' => 'post_content'" "$file"
+          grep -Fq "'post_excerpt' => 'post_excerpt'" "$file"
+          grep -Fq "'post_author'  => 'post_author'" "$file"
+          grep -Fq "'post_name'    => 'post_name'" "$file"
+          grep -Fq "'draft'   => 'draft'" "$file"
+          grep -Fq "'pending' => 'pending'" "$file"
+          grep -Fq "'publish' => 'publish'" "$file"
+          grep -Fq "'private' => 'private'" "$file"
+          grep -Fq "Campaigns::META_GOAL_AMOUNT" "$file"
+          grep -Fq "Campaigns::META_CURRENCY" "$file"
+          grep -Fq "Campaigns::META_DEADLINE" "$file"
+          grep -Fq "'source_key' => null" "$file"
+          grep -Fq "'source_column' => null" "$file"
+          grep -Fq "public static function write_ready(): bool" "$file"
+          grep -Fq "includes/compat/class-legacy-migration-mapping.php" "$bootstrap"
+
+          if grep -Eiq 'wp_insert_post|wp_update_post|update_post_meta|add_post_meta|delete_post_meta|\$wpdb->(insert|update|delete|replace)|dbDelta|update_option|add_option|delete_option' "$file"; then
+            echo 'Mapping contract must not perform migration writes.' >&2
+            exit 1
+          fi
+
+          php -r '
+            define("ABSPATH", __DIR__);
+            require "includes/class-campaigns.php";
+            require "includes/compat/class-legacy-migration-mapping.php";
+            use Kairoseth\CrowdfundingWordPress\Compat\Legacy_Migration_Mapping;
+            if (Legacy_Migration_Mapping::write_ready()) { fwrite(STDERR, "Unconfirmed mapping must fail closed.\n"); exit(1); }
+          '
+
+          php -l "$file"
+          php -l "$bootstrap"
