@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Resolve normalized notification events to stable WordPress user references.
  *
  * This resolver is read-only. It never returns email addresses, names or channel
- * destinations and it never infers guest identity from WooCommerce/customer data.
+ * destinations and it never infers guest identity from external commerce/customer data.
  * Future delivery adapters may resolve a wp_user reference to a channel address
  * only at delivery time and under their own authorization/privacy contract.
  */
