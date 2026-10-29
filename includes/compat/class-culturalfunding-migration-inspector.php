@@ -23,30 +23,31 @@ final class CulturalFunding_Migration_Inspector {
 	public function inspect(): array {
 		global $wpdb;
 
-		$source_table = $wpdb->prefix . self::SOURCE_TABLE_SUFFIX;
-		$table_exists = $this->table_exists( $source_table );
+		$source_table  = $wpdb->prefix . self::SOURCE_TABLE_SUFFIX;
+		$table_exists  = $this->table_exists( $source_table );
+		$campaign_count = $this->campaign_count();
 
 		return array(
 			'source' => array(
-				'post_type'          => self::SOURCE_POST_TYPE,
-				'campaign_count'     => $this->campaign_count(),
-				'campaign_statuses'  => $this->campaign_statuses(),
-				'contribution_table' => $source_table,
-				'contribution_count' => $table_exists ? $this->table_count( $source_table ) : 0,
-				'contribution_fields'=> $table_exists ? $this->table_columns( $source_table ) : array(),
-				'meta_keys'          => $this->campaign_meta_keys(),
+				'post_type'           => self::SOURCE_POST_TYPE,
+				'campaign_count'      => $campaign_count,
+				'campaign_statuses'   => $this->campaign_statuses(),
+				'contribution_table'  => $source_table,
+				'contribution_count'  => $table_exists ? $this->table_count( $source_table ) : 0,
+				'contribution_fields' => $table_exists ? $this->table_columns( $source_table ) : array(),
+				'meta_keys'           => $this->campaign_meta_keys(),
 			),
 			'target' => array(
 				'post_type'      => \Kairoseth\CrowdfundingWordPress\Campaigns::POST_TYPE,
 				'campaign_count' => $this->target_campaign_count(),
 			),
 			'compatibility' => array(
-				'campaign_source_detected'     => $this->campaign_count() > 0,
+				'campaign_source_detected'     => $campaign_count > 0,
 				'contribution_source_detected' => $table_exists,
 				'reward_mapping_status'        => 'unmapped',
 				'write_enabled'                 => false,
 			),
-			'blockers' => $this->blockers( $table_exists ),
+			'blockers' => $this->blockers( $campaign_count, $table_exists ),
 		);
 	}
 
@@ -93,19 +94,17 @@ final class CulturalFunding_Migration_Inspector {
 				FROM {$wpdb->postmeta} pm
 				INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
 				WHERE p.post_type = %s
-				AND pm.meta_key NOT LIKE %s
 				GROUP BY pm.meta_key
 				ORDER BY total DESC, pm.meta_key ASC
 				LIMIT 100",
-				self::SOURCE_POST_TYPE,
-				'\\_%'
+				self::SOURCE_POST_TYPE
 			),
 			ARRAY_A
 		);
 
 		$keys = array();
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
-			$key = isset( $row['meta_key'] ) ? sanitize_key( (string) $row['meta_key'] ) : '';
+			$key = isset( $row['meta_key'] ) ? sanitize_text_field( (string) $row['meta_key'] ) : '';
 			if ( '' === $key ) {
 				continue;
 			}
@@ -167,9 +166,9 @@ final class CulturalFunding_Migration_Inspector {
 	}
 
 	/** @return array<int,string> */
-	private function blockers( bool $contribution_table_exists ): array {
+	private function blockers( int $campaign_count, bool $contribution_table_exists ): array {
 		$blockers = array();
-		if ( 0 === $this->campaign_count() ) {
+		if ( 0 === $campaign_count ) {
 			$blockers[] = 'source_campaigns_not_detected';
 		}
 		if ( ! $contribution_table_exists ) {
