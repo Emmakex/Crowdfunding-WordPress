@@ -18,14 +18,17 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 `Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit`
 
-Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability and fulfillment remain separate Core authorities.
+Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability, fulfillment and account dashboards remain separate Core authorities.
 
-As of **0.4.11**, the repository includes:
+As of **0.5.0**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
 - payment-provider-neutral contribution ledger with idempotency;
 - immutable original contribution amounts and refund-safe adjustments;
+- authenticated current-user contribution dashboard derived from Core records;
+- dashboard net amounts derived from applied refund adjustments, never order totals;
+- dashboard reward entitlement derived from Core reward claims;
 - generic versioned rewards domain linked to campaigns;
 - frontend reward management and public reward presentation;
 - versioned reward-claims ledger with active/reversed lifecycle;
@@ -47,7 +50,7 @@ As of **0.4.11**, the repository includes:
 ## Architecture principles
 
 - Generic WordPress Core; no CulturalFunding-specific business logic.
-- WooCommerce is the commerce/payment integration layer, not the owner of campaign, reward, claim or fulfillment domain logic.
+- WooCommerce is the commerce/payment integration layer, not the owner of campaign, reward, claim, fulfillment or dashboard domain logic.
 - Reward definitions are Core records, never WooCommerce products by definition.
 - Reward selection is transport evidence, not a reservation or claim.
 - Reward claims represent entitlement; fulfillment represents operational delivery state.
@@ -71,6 +74,10 @@ As of **0.4.11**, the repository includes:
 - Fulfillment audit is a separate read-only surface using the same campaign authority and immutable event ledger.
 - Audit events are ordered chronologically and expose event ID, origin and stable source reference without introducing a second history store.
 - The audit component registers no write action and has no direct repository-transition, WooCommerce or SQL-write authority.
+- The contribution dashboard is authenticated and always scopes reads to `get_current_user_id()`; browser input cannot select another account.
+- Dashboard financial values come from the contribution and adjustment Core ledgers, not WooCommerce orders or editable user metadata.
+- Dashboard reward entitlement comes from Core reward claims; technical source references and customer PII are not exposed.
+- Guest contributions with `user_id = 0` are not attached heuristically to an authenticated account.
 - Fulfillment stores no billing, shipping, tracking or customer PII in this management/audit foundation.
 - Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
 - Original contribution amounts are immutable; financial corrections are additive adjustment records.
@@ -83,8 +90,8 @@ As of **0.4.11**, the repository includes:
 - **0.1.x** Foundation and campaign domain — complete.
 - **0.2.x** Promoters and frontend campaign workflow — complete.
 - **0.3.x** WooCommerce contribution flow, refund integrity and authoritative funding progress — complete.
-- **0.4.x** Rewards — in progress.
-- **0.5.x** Contribution dashboards and campaign statistics.
+- **0.4.x** Rewards — complete.
+- **0.5.x** Contribution dashboards and campaign statistics — in progress.
 - **0.6.x** Moderation and campaign workflow expansion.
 - **0.7.x** Notifications and reporting.
 - **0.8.x** Internationalization and accessibility hardening.
