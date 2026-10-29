@@ -96,6 +96,7 @@ final class WooCommerce_Reward_Adapter {
 		}
 
 		do_action( 'cfwp_woocommerce_reward_claim_synced', (int) $existing['id'], $contribution_id, $order_id, $item_id, $reward_id, Reward_Claims::STATUS_REVERSED );
+		do_action( 'cfwp_woocommerce_reward_claim_reversed', (int) $existing['id'], $contribution_id, $order_id, $item_id, $reward_id );
 	}
 
 	/**
