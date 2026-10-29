@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.6.2
+Stable tag: 0.6.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,9 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Transactional administrator moderation decision authority for `in_review`, `approved` and `rejected` transitions.
 * Immutable `cfwp_campaign_moderation_events` decision ledger with moderator user ID, source/reference idempotency and chronological reads.
 * Moderation decisions update Core state and audit history atomically while remaining unable to publish or unpublish WordPress content.
+* Native WordPress moderation queue for `submitted` and `in_review` campaigns.
+* Campaign moderation detail with repository-governed decisions and immutable decision history.
+* Nonce, capability and per-form UUID idempotency protection for every administrative moderation request.
 * Public campaign catalogue and campaign detail shortcodes.
 * Authoritative net raised amount derived from confirmed contributions minus applied refund adjustments.
 * Frontend promoter registration, campaign submission, editing and personal dashboard.
@@ -87,6 +90,7 @@ The Core remains independent from any single crowdfunding platform, payment gate
 17. Publish `[crowdfunding_campaign_statistics]` on an authenticated promoter page to show aggregate Core statistics, fulfillment workload and contribution trends for one authorized campaign.
 18. Add `[crowdfunding_fulfillment_health]` to an authenticated promoter/admin page when aggregate entitlement-versus-fulfillment reconciliation health should be monitored.
 19. Publish `[crowdfunding_promoter_portfolio]` on an authenticated promoter page for an executive aggregate view across every campaign owned by the current account.
+20. Administrators with `moderate_cfwp_campaigns` can use **Crowdfunding → Moderation** to review submitted/in-review campaigns and record Core decisions.
 
 == Campaign moderation ==
 
@@ -109,6 +113,14 @@ Version 0.6.2 adds `Campaign_Moderation_Repository` as the single transactional 
 Every successful decision updates the current moderation meta and inserts one immutable row into `cfwp_campaign_moderation_events` inside the same transaction. Events record campaign ID, moderator WordPress user ID, previous state, target state, source, stable source reference and UTC timestamp. Repeated calls with the same source/reference resolve idempotently only when they refer to the same campaign and target state.
 
 The decision repository fails closed on missing, duplicated or invalid moderation metadata, locks the campaign/state rows while deciding, and exposes chronological event reads ordered by event ID. The ledger begins with actual decisions recorded from 0.6.2 onward: submission/bootstrap compatibility state is not retroactively rewritten into fake decision events. No moderation decision can publish, unpublish or otherwise mutate WordPress editorial `post_status`.
+
+Version 0.6.3 adds the native WordPress **Crowdfunding → Moderation** operations UI. The queue is capability-gated and contains only campaigns whose current Core state is `submitted` or `in_review`, with pagination so pending work is not hidden when volume grows.
+
+Opening a queue item shows current Core moderation state, separate WordPress editorial state, an explicit link to the campaign editor, the administrator decisions currently allowed by `Campaign_Moderation::can_decide_transition()`, and the immutable decision history from the 0.6.2 ledger. The editorial modified timestamp is labelled only as content activity and is never presented as a historical submission time.
+
+Every decision form is nonce-protected, requires `moderate_cfwp_campaigns`, and carries a fresh UUID. The UI passes `admin_ui` plus that UUID-derived stable reference to `Campaign_Moderation_Repository::transition()`; it never writes moderation meta, event rows or WordPress post status directly. Double submission of the same rendered form therefore resolves through the repository idempotency contract rather than creating a second decision.
+
+Approving in this UI changes only Core moderation state. Publishing/unpublishing remains a separate WordPress editorial action.
 
 == Contributions and adjustments ==
 
@@ -298,6 +310,10 @@ Version 0.6.1 performs a bounded compatibility backfill only for campaigns with 
 
 Yes. From version 0.6.2, administrator transitions to `in_review`, `approved` or `rejected` are committed together with an immutable Core decision event containing the moderator user ID, previous/target states, source/reference and timestamp. Legacy backfill classifications and simple promoter submissions are not retroactively represented as moderator decisions.
 
+= Where do administrators moderate campaigns? =
+
+From version 0.6.3, administrators with `moderate_cfwp_campaigns` use **Crowdfunding → Moderation**. The queue contains current `submitted` and `in_review` campaigns, and each campaign detail shows repository-governed actions plus immutable decision history.
+
 = Does approving a campaign publish it? =
 
 No. Core moderation and WordPress editorial publication remain separate. An `approved` moderation state never calls WordPress publish/unpublish APIs or changes `post_status` by itself.
@@ -383,6 +399,16 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.6.3 =
+* Added native **Crowdfunding → Moderation** administrator operations UI.
+* Added a paginated queue scoped to current Core `submitted` and `in_review` campaigns.
+* Added campaign moderation detail with separate Core moderation and WordPress editorial state.
+* Added repository-governed Start review, Approve and Reject actions based on `can_decide_transition()`.
+* Added immutable decision-history presentation from the 0.6.2 moderation event ledger.
+* Added nonce/capability checks plus per-form UUID source references for idempotent decision requests.
+* Kept the UI free of direct moderation-meta, event-table or WordPress `post_status` writes.
+* Approving continues to affect Core moderation only and never publishes/unpublishes campaign content.
 
 = 0.6.2 =
 * Added transactional administrator moderation decision authority for `in_review`, `approved` and `rejected` transitions.
