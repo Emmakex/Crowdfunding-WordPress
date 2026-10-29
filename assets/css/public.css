@@ -296,6 +296,50 @@
 	cursor: pointer;
 }
 
+.cfwp-rewards {
+	display: grid;
+	gap: 1rem;
+	margin: 1.25rem 0;
+}
+
+.cfwp-rewards__heading {
+	margin: 0;
+}
+
+.cfwp-rewards__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+	gap: 1rem;
+}
+
+.cfwp-reward-card {
+	display: grid;
+	gap: 0.75rem;
+	padding: 1rem;
+	border: 1px solid currentColor;
+	border-radius: 0.6rem;
+}
+
+.cfwp-reward-card__title,
+.cfwp-reward-card__minimum,
+.cfwp-reward-card__limit,
+.cfwp-reward-card__description p:first-child {
+	margin-top: 0;
+}
+
+.cfwp-reward-card__minimum,
+.cfwp-reward-card__limit,
+.cfwp-reward-card__description p:last-child {
+	margin-bottom: 0;
+}
+
+.cfwp-reward-card__minimum {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	align-items: baseline;
+}
+
 @media (max-width: 34rem) {
 	.cfwp-contribution-form {
 		grid-template-columns: 1fr;
