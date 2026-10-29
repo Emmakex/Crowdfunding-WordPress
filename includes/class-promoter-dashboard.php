@@ -21,9 +21,10 @@ final class Promoter_Dashboard {
 	public function render( array|string $atts = array() ): string {
 		$atts = shortcode_atts(
 			array(
-				'per_page'    => 12,
-				'edit_url'    => '',
-				'rewards_url' => '',
+				'per_page'       => 12,
+				'edit_url'       => '',
+				'rewards_url'    => '',
+				'fulfillment_url'=> '',
 			),
 			is_array( $atts ) ? $atts : array(),
 			'crowdfunding_promoter_dashboard'
@@ -45,10 +46,11 @@ final class Promoter_Dashboard {
 			return '<p class="cfwp-notice cfwp-notice--error">' . esc_html__( 'Your account does not have permission to manage crowdfunding campaigns.', 'crowdfunding-wordpress' ) . '</p>';
 		}
 
-		$per_page    = max( 1, min( 50, absint( $atts['per_page'] ) ) );
-		$page        = isset( $_GET[ self::QUERY_PAGE ] ) ? max( 1, absint( wp_unslash( $_GET[ self::QUERY_PAGE ] ) ) ) : 1;
-		$edit_url    = '' !== trim( (string) $atts['edit_url'] ) ? esc_url_raw( (string) $atts['edit_url'] ) : '';
-		$rewards_url = '' !== trim( (string) $atts['rewards_url'] ) ? esc_url_raw( (string) $atts['rewards_url'] ) : '';
+		$per_page        = max( 1, min( 50, absint( $atts['per_page'] ) ) );
+		$page            = isset( $_GET[ self::QUERY_PAGE ] ) ? max( 1, absint( wp_unslash( $_GET[ self::QUERY_PAGE ] ) ) ) : 1;
+		$edit_url        = '' !== trim( (string) $atts['edit_url'] ) ? esc_url_raw( (string) $atts['edit_url'] ) : '';
+		$rewards_url     = '' !== trim( (string) $atts['rewards_url'] ) ? esc_url_raw( (string) $atts['rewards_url'] ) : '';
+		$fulfillment_url = '' !== trim( (string) $atts['fulfillment_url'] ) ? esc_url_raw( (string) $atts['fulfillment_url'] ) : '';
 
 		$query = new \WP_Query(
 			array(
@@ -75,7 +77,7 @@ final class Promoter_Dashboard {
 			<?php else : ?>
 				<div class="cfwp-dashboard__campaigns">
 					<?php foreach ( $query->posts as $campaign ) : ?>
-						<?php echo $this->render_campaign( $campaign, $edit_url, $rewards_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						<?php echo $this->render_campaign( $campaign, $edit_url, $rewards_url, $fulfillment_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 					<?php endforeach; ?>
 				</div>
 
@@ -87,7 +89,7 @@ final class Promoter_Dashboard {
 		return (string) ob_get_clean();
 	}
 
-	private function render_campaign( \WP_Post $campaign, string $edit_url, string $rewards_url ): string {
+	private function render_campaign( \WP_Post $campaign, string $edit_url, string $rewards_url, string $fulfillment_url ): string {
 		$goal_amount = (float) get_post_meta( $campaign->ID, Campaigns::META_GOAL_AMOUNT, true );
 		$currency    = (string) get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true );
 		$deadline    = (string) get_post_meta( $campaign->ID, Campaigns::META_DEADLINE, true );
@@ -124,6 +126,9 @@ final class Promoter_Dashboard {
 			<?php if ( 'publish' === $campaign->post_status ) : ?>
 				<p class="cfwp-dashboard-card__actions">
 					<a href="<?php echo esc_url( get_permalink( $campaign ) ); ?>"><?php esc_html_e( 'View campaign', 'crowdfunding-wordpress' ); ?></a>
+					<?php if ( '' !== $fulfillment_url && current_user_can( 'manage_cfwp_fulfillments' ) ) : ?>
+						<a href="<?php echo esc_url( add_query_arg( 'cfwp_campaign_id', $campaign->ID, $fulfillment_url ) ); ?>"><?php esc_html_e( 'Manage fulfillment', 'crowdfunding-wordpress' ); ?></a>
+					<?php endif; ?>
 				</p>
 			<?php else : ?>
 				<?php if ( '' !== $edit_url || '' !== $rewards_url ) : ?>

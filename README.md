@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle`
+`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management`
 
 Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability and fulfillment remain separate Core authorities.
 
-As of **0.4.9**, the repository includes:
+As of **0.4.10**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -38,7 +38,8 @@ As of **0.4.9**, the repository includes:
 - immutable fulfillment transition events with source/reference idempotency;
 - automatic claim-lifecycle synchronization into fulfillment state;
 - bounded, idempotent backfill for historical active claims missing fulfillment;
-- explicit protection against automatically reversing a fulfillment already marked `fulfilled`;
+- authenticated campaign-scoped fulfillment management for promoters and administrators;
+- explicit protection against manually cancelling/reactivating entitlement-owned fulfillment states;
 - HPOS-safe WooCommerce order and refund adapters;
 - authoritative net confirmed raised amount and campaign progress.
 
@@ -62,8 +63,11 @@ As of **0.4.9**, the repository includes:
 - `fulfilled` is terminal and is never automatically changed when a claim is later reversed; the mismatch is surfaced for manual review.
 - Historical active claims missing fulfillment are reconciled in bounded batches through the same `ensure_for_claim()` authority used by normal Core creation.
 - Backfill reads claims but never mutates claim rows; completion is recorded only after no active claim remains without fulfillment.
-- Forward fulfillment progress requires an active reward claim.
-- Fulfillment stores no billing, shipping or customer PII in this lifecycle bridge/backfill foundation.
+- Fulfillment management has its own `manage_cfwp_fulfillments` capability and does not grant promoters permission to edit published campaigns.
+- The management UI derives campaign authority from fulfillment → claim → reward and never trusts a browser-supplied campaign ID as permission.
+- Manual fulfillment management can advance only `pending → processing/fulfilled` and `processing → fulfilled`; cancellation/reactivation remain claim-lifecycle responsibilities.
+- Administrators may supervise other campaigns through their existing cross-campaign authority; promoters remain restricted to campaigns they own.
+- Fulfillment stores no billing, shipping, tracking or customer PII in this management cut.
 - Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
 - Original contribution amounts are immutable; financial corrections are additive adjustment records.
 - Escaping, sanitization, capability checks, nonces and idempotency are mandatory.

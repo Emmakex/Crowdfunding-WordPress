@@ -1,0 +1,77 @@
+name: Reward Fulfillment Management
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  fulfillment-management-contract:
+    name: Reward fulfillment management contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify operational UI preserves entitlement and fulfillment authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          manager='includes/class-reward-fulfillment-manager.php'
+          query='includes/class-reward-fulfillment-query.php'
+          promoters='includes/class-promoters.php'
+          dashboard='includes/class-promoter-dashboard.php'
+          bootstrap='crowdfunding-wordpress.php'
+          plugin='includes/class-plugin.php'
+
+          grep -Fq "private const SCHEMA_VERSION        = '2';" "$promoters"
+          grep -Fq "'manage_cfwp_fulfillments'       => true" "$promoters"
+          grep -Fq "'manage_cfwp_fulfillments'," "$promoters"
+
+          grep -Fq "add_shortcode( 'crowdfunding_manage_fulfillment'" "$manager"
+          grep -Fq "add_action( 'admin_post_' . self::ACTION" "$manager"
+          grep -Fq "current_user_can( self::CAPABILITY )" "$manager"
+          grep -Fq "wp_verify_nonce( \$nonce, \$this->nonce_action( \$fulfillment_id, \$target_status ) )" "$manager"
+          grep -Fq "\$context = \$this->query->find_context( \$fulfillment_id )" "$manager"
+          grep -Fq "(int) \$campaign->post_author === get_current_user_id()" "$manager"
+          grep -Fq "current_user_can( 'edit_others_cfwp_campaigns' )" "$manager"
+          grep -Fq "array( Reward_Fulfillments::STATUS_PROCESSING, Reward_Fulfillments::STATUS_FULFILLED )" "$manager"
+          grep -Fq "\$this->fulfillments->transition( \$fulfillment_id, \$target_status, 'management_ui', \$reference )" "$manager"
+          grep -Fq "Reward_Fulfillments::STATUS_CANCELLED === \$status" "$manager"
+          grep -Fq "Reward_Fulfillments::STATUS_FULFILLED === \$status" "$manager"
+          grep -Fq "wp_validate_redirect( \$requested, home_url( '/' ) )" "$manager"
+
+          grep -Fq "INNER JOIN" "$query"
+          grep -Fq "Reward_Fulfillments::table_name()" "$query"
+          grep -Fq "Reward_Claims::table_name()" "$query"
+          grep -Fq "Rewards::table_name()" "$query"
+          grep -Fq "WHERE r.campaign_id = %d" "$query"
+          grep -Fq "WHERE f.id = %d LIMIT 1" "$query"
+
+          grep -Fq "fulfillment_url" "$dashboard"
+          grep -Fq "current_user_can( 'manage_cfwp_fulfillments' )" "$dashboard"
+          grep -Fq "class-reward-fulfillment-query.php" "$bootstrap"
+          grep -Fq "class-reward-fulfillment-manager.php" "$bootstrap"
+          grep -Fq "Reward_Fulfillment_Manager" "$plugin"
+          grep -Fq "reward_fulfillment_manager, 'register'" "$plugin"
+
+          if grep -Eq '\$wpdb|woocommerce|\bwc_' "$manager"; then
+            echo 'Fulfillment management UI must use Core query/repository authorities and remain WooCommerce-free.'
+            exit 1
+          fi
+
+          if grep -Eq '\$wpdb->(insert|update|delete|replace)' "$query"; then
+            echo 'Fulfillment query layer must remain read-only.'
+            exit 1
+          fi
+
+          if grep -Eq "target_status[^\n]*STATUS_(CANCELLED|PENDING)|STATUS_(CANCELLED|PENDING)[^\n]*target_status" "$manager"; then
+            echo 'Manual UI must never request cancelled or pending fulfillment transitions.'
+            exit 1
+          fi
+
+          if grep -Eq 'admin_post_nopriv' "$manager"; then
+            echo 'Fulfillment management must remain authenticated.'
+            exit 1
+          fi

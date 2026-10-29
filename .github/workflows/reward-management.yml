@@ -34,7 +34,7 @@ jobs:
           grep -Fq "'sort_order'" "$file"
           grep -Fq "'claim_limit'" "$file"
           grep -Fq "'enabled' => ! (bool) \$reward['enabled']" "$file"
-          grep -Fq "'rewards_url' => ''" "$dashboard"
+          grep -Eq "'rewards_url'[[:space:]]*=>[[:space:]]*''" "$dashboard"
           grep -Fq "Manage rewards" "$dashboard"
 
           if grep -Fq "admin_post_nopriv_" "$file"; then
