@@ -20,7 +20,7 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability, fulfillment, account dashboards and campaign statistics remain separate Core authorities.
 
-As of **0.5.1**, the repository includes:
+As of **0.5.2**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -31,6 +31,8 @@ As of **0.5.1**, the repository includes:
 - dashboard reward entitlement derived from Core reward claims;
 - authenticated campaign-owner aggregate statistics;
 - campaign net funding, progress, contribution-state counts and reward-claim counts derived from Core authorities;
+- bounded day/week/month campaign contribution trends over selectable date ranges;
+- trend net value derived from current confirmed contributions minus current applied refunds and attributed to contribution creation periods;
 - generic versioned rewards domain linked to campaigns;
 - frontend reward management and public reward presentation;
 - versioned reward-claims ledger with active/reversed lifecycle;
@@ -82,6 +84,10 @@ As of **0.5.1**, the repository includes:
 - Guest contributions with `user_id = 0` are not attached heuristically to an authenticated account.
 - Campaign statistics are campaign-scoped aggregate reads; browser-selected campaign IDs are reauthorized against campaign ownership.
 - Campaign statistics reuse the authoritative net-confirmed total and expose only aggregate contribution/claim counts, never supporter rows or PII.
+- Campaign trend filters are selectors only; authorization is resolved before any aggregate trend query runs.
+- Campaign trends are bounded to 366 days and use an allowlisted `day`, `week` or `month` bucket.
+- Trend net values use current Core status/refund facts and are attributed to contribution `created_at`; they are not presented as a reconstructed historical balance because contribution state transitions are not yet versioned as an event ledger.
+- `updated_at` is not treated as evidence of when a contribution entered a specific historical state.
 - Fulfillment stores no billing, shipping, tracking or customer PII in this management/audit foundation.
 - Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
 - Original contribution amounts are immutable; financial corrections are additive adjustment records.
