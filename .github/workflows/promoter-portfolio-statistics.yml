@@ -1,0 +1,74 @@
+name: Promoter Portfolio Statistics
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  promoter-portfolio-statistics-contract:
+    name: Promoter portfolio statistics authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify portfolio remains current-user, aggregate and Core-authoritative
+        shell: bash
+        run: |
+          set -euo pipefail
+          surface='includes/class-promoter-portfolio-statistics.php'
+          query='includes/class-promoter-portfolio-statistics-query.php'
+          bootstrap='crowdfunding-wordpress.php'
+          plugin='includes/class-plugin.php'
+
+          grep -Fq "add_shortcode( 'crowdfunding_promoter_portfolio'" "$surface"
+          grep -Fq "current_user_can( 'edit_cfwp_campaigns' )" "$surface"
+          grep -Fq 'summary_for_owner( get_current_user_id() )' "$surface"
+          grep -Fq "'author'         => \$owner_id" "$query"
+          grep -Fq "'post_status'    => array( 'draft', 'pending', 'publish' )" "$query"
+          grep -Fq 'new Campaign_Statistics_Query()' "$query"
+          grep -Fq 'new Fulfillment_Reconciliation_Health_Query()' "$query"
+          grep -Fq 'summary_for_campaign( $campaign_id )' "$query"
+          grep -Fq "'net_raised_by_currency'" "$query"
+          grep -Fq "'active_entitlements'" "$query"
+          grep -Fq "'pending_delivery'" "$query"
+          grep -Fq "'health_issue_total'" "$query"
+          grep -Fq "'campaigns_needing_attention'" "$query"
+          grep -Fq 'add_decimals( $current_total, $campaign_net )' "$query"
+          grep -Fq "'UNSPECIFIED'" "$query"
+
+          grep -Fq 'includes/class-promoter-portfolio-statistics-query.php' "$bootstrap"
+          grep -Fq 'includes/class-promoter-portfolio-statistics.php' "$bootstrap"
+          grep -Fq 'Promoter_Portfolio_Statistics' "$plugin"
+
+          if grep -Eq '\$_GET|\$_POST|shortcode_atts\(' "$surface"; then
+            echo 'Portfolio identity must not be selectable from browser input or shortcode attributes.'
+            exit 1
+          fi
+
+          if grep -Eiq 'woocommerce|\bwc_|order_id|order_status' "$surface" "$query"; then
+            echo 'Promoter portfolio statistics must remain independent from WooCommerce authority.'
+            exit 1
+          fi
+
+          if grep -Eq '\$wpdb|INSERT|UPDATE|DELETE|START TRANSACTION|COMMIT|ROLLBACK|->transition\(|ensure_for_claim\(|reconcile_contribution\(' "$surface" "$query"; then
+            echo 'Promoter portfolio statistics must remain read-only and must reuse existing Core query authorities.'
+            exit 1
+          fi
+
+          if grep -Eiq 'user_email|email|billing|shipping|phone|customer|source_reference|tracking' "$surface" "$query"; then
+            echo 'Promoter portfolio statistics must remain free of supporter PII and technical references.'
+            exit 1
+          fi
+
+          if grep -Eq "['\"]campaign_id['\"]|['\"]claim_id['\"]|['\"]fulfillment_id['\"]|['\"]user_id['\"]" "$query"; then
+            echo 'Promoter portfolio output must not return campaign, claim, fulfillment or user identifiers.'
+            exit 1
+          fi
+
+          if grep -Eq 'net_raised[^_a-zA-Z].*\+=' "$query"; then
+            echo 'Portfolio net raised must never be cross-summed without currency grouping.'
+            exit 1
+          fi

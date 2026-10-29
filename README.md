@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit/health → account/campaign dashboards`
+`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit/health → account/campaign/portfolio dashboards`
 
-Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability, fulfillment, reconciliation health, account dashboards and campaign statistics remain separate Core authorities.
+Campaigns, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but entitlement, availability, fulfillment, reconciliation health, account dashboards, campaign statistics and promoter portfolio statistics remain separate Core authorities.
 
-As of **0.5.4**, the repository includes:
+As of **0.5.5**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -37,6 +37,9 @@ As of **0.5.4**, the repository includes:
 - pending-delivery workload and fulfillment completion rate derived only from Core fulfillment rows;
 - read-only campaign-scoped fulfillment reconciliation health diagnostics;
 - aggregate detection of active claims missing fulfillment, active claims stuck cancelled, reversed claims still open and reversed-after-fulfilled exceptions;
+- authenticated current-promoter portfolio statistics across every owned draft, pending and published campaign;
+- portfolio campaign counts, contribution totals, active entitlements, pending-delivery workload and fulfillment-health issue totals derived from existing Core campaign/health authorities;
+- portfolio net raised grouped by ISO campaign currency so unlike currencies are never cross-summed;
 - generic versioned rewards domain linked to campaigns;
 - frontend reward management and public reward presentation;
 - versioned reward-claims ledger with active/reversed lifecycle;
@@ -98,6 +101,10 @@ As of **0.5.4**, the repository includes:
 - Campaign trends are bounded to 366 days and use an allowlisted `day`, `week` or `month` bucket.
 - Trend net values use current Core status/refund facts and are attributed to contribution `created_at`; they are not presented as a reconstructed historical balance because contribution state transitions are not yet versioned as an event ledger.
 - `updated_at` is not treated as evidence of when a contribution entered a specific historical state.
+- Promoter portfolio statistics derive identity exclusively from `get_current_user_id()` and accept no browser-selected account identity.
+- Portfolio metrics reuse `Campaign_Statistics_Query` and `Fulfillment_Reconciliation_Health_Query`; the portfolio layer does not create alternate financial, entitlement, delivery or health formulas.
+- Portfolio net funding is grouped by campaign currency and unlike currencies are never added together.
+- Portfolio output remains aggregate: no supporter rows, claim IDs, fulfillment IDs, user IDs, emails, source references or WooCommerce customer/order data are exposed.
 - Fulfillment stores no billing, shipping, tracking or customer PII in this management/audit foundation.
 - Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
 - Original contribution amounts are immutable; financial corrections are additive adjustment records.
@@ -111,7 +118,7 @@ As of **0.5.4**, the repository includes:
 - **0.2.x** Promoters and frontend campaign workflow — complete.
 - **0.3.x** WooCommerce contribution flow, refund integrity and authoritative funding progress — complete.
 - **0.4.x** Rewards — complete.
-- **0.5.x** Contribution dashboards and campaign statistics — in progress.
+- **0.5.x** Contribution dashboards and campaign statistics — complete.
 - **0.6.x** Moderation and campaign workflow expansion.
 - **0.7.x** Notifications and reporting.
 - **0.8.x** Internationalization and accessibility hardening.

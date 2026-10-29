@@ -23,6 +23,7 @@ final class Plugin {
 	private Reward_Fulfillment_Manager $reward_fulfillment_manager;
 	private Contribution_Dashboard $contribution_dashboard;
 	private Campaign_Statistics $campaign_statistics;
+	private Promoter_Portfolio_Statistics $promoter_portfolio_statistics;
 	private Fulfillment_Reconciliation_Health $fulfillment_reconciliation_health;
 	private Promoter_Dashboard $promoter_dashboard;
 	private Promoter_Registration $promoter_registration;
@@ -46,6 +47,7 @@ final class Plugin {
 		$this->reward_fulfillment_manager             = new Reward_Fulfillment_Manager();
 		$this->contribution_dashboard                 = new Contribution_Dashboard();
 		$this->campaign_statistics                    = new Campaign_Statistics();
+		$this->promoter_portfolio_statistics          = new Promoter_Portfolio_Statistics();
 		$this->fulfillment_reconciliation_health      = new Fulfillment_Reconciliation_Health();
 		$this->promoter_dashboard                     = new Promoter_Dashboard();
 		$this->promoter_registration                  = new Promoter_Registration();
@@ -99,6 +101,7 @@ final class Plugin {
 		add_action( 'init', array( Reward_Fulfillment_Audit::class, 'register' ) );
 		add_action( 'init', array( $this->contribution_dashboard, 'register' ) );
 		add_action( 'init', array( $this->campaign_statistics, 'register' ) );
+		add_action( 'init', array( $this->promoter_portfolio_statistics, 'register' ) );
 		add_action( 'init', array( $this->fulfillment_reconciliation_health, 'register' ) );
 		add_action( 'init', array( $this->promoter_dashboard, 'register' ) );
 		add_action( 'init', array( $this->promoter_registration, 'register' ) );
