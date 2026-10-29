@@ -30,17 +30,19 @@ final class Campaign_Resubmission {
 
 		ob_start();
 		?>
-		<section class="cfwp-resubmission" aria-labelledby="cfwp-resubmission-title">
+		<section class="cfwp-resubmission cfwp-notice cfwp-notice--error" aria-labelledby="cfwp-resubmission-title">
 			<h3 id="cfwp-resubmission-title"><?php esc_html_e( 'Resubmit for review', 'crowdfunding-wordpress' ); ?></h3>
 			<p><?php esc_html_e( 'This campaign was rejected in Core moderation. Save any required content changes first, then explicitly resubmit it for another review.', 'crowdfunding-wordpress' ); ?></p>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<form class="cfwp-submission-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>" />
 				<input type="hidden" name="cfwp_campaign_id" value="<?php echo esc_attr( (string) $campaign->ID ); ?>" />
 				<input type="hidden" name="cfwp_redirect_to" value="<?php echo esc_url( $redirect_url ); ?>" />
 				<?php wp_nonce_field( self::ACTION . '_' . $campaign->ID, self::NONCE_NAME ); ?>
-				<button type="submit"><?php esc_html_e( 'Resubmit campaign for review', 'crowdfunding-wordpress' ); ?></button>
+				<p class="cfwp-submission-form__actions">
+					<button type="submit"><?php esc_html_e( 'Resubmit campaign for review', 'crowdfunding-wordpress' ); ?></button>
+				</p>
 			</form>
-			<p class="cfwp-help"><?php esc_html_e( 'Resubmission changes only the Core moderation state back to Submitted. It does not publish the campaign or alter its WordPress editorial status.', 'crowdfunding-wordpress' ); ?></p>
+			<p><?php esc_html_e( 'Resubmission changes only the Core moderation state back to Submitted. It does not publish the campaign or alter its WordPress editorial status.', 'crowdfunding-wordpress' ); ?></p>
 		</section>
 		<?php
 
