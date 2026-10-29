@@ -1,0 +1,67 @@
+name: Reward Entitlement Reconciliation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  reward-entitlement-reconciliation-contract:
+    name: Reward entitlement reconciliation contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify net eligibility, reversible history and limit-safe reactivation
+        shell: bash
+        run: |
+          set -euo pipefail
+          adjustments='includes/class-contribution-adjustment-repository.php'
+          claims='includes/class-reward-claim-repository.php'
+          reconciler='includes/class-reward-entitlement-reconciler.php'
+          bridge='includes/class-woocommerce-reward-adapter.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq 'public function net_amount_for_contribution' "$adjustments"
+          grep -Fq "cfwp_contribution_adjustment_reversed" "$adjustments"
+          grep -Fq 'Contribution_Adjustments::STATUS_APPLIED' "$adjustments"
+
+          grep -Fq 'private Contribution_Adjustment_Repository $adjustments;' "$claims"
+          grep -Fq 'net_amount_for_contribution' "$claims"
+          grep -Fq 'public function qualifies_for_reward' "$claims"
+          grep -Fq 'public function reactivate' "$claims"
+          grep -Fq 'FOR UPDATE' "$claims"
+          grep -Fq 'active_count_for_reward' "$claims"
+          grep -Fq 'cfwp_reward_claim_reactivated' "$claims"
+
+          grep -Fq 'final class Reward_Entitlement_Reconciler' "$reconciler"
+          grep -Fq 'list_for_contribution' "$reconciler"
+          grep -Fq "cfwp_reward_claim_below_minimum" "$reconciler"
+          grep -Fq '\$this->claims->reverse(' "$reconciler"
+          grep -Fq '\$this->claims->reactivate(' "$reconciler"
+          grep -Fq 'cfwp_reward_entitlement_reconciled' "$reconciler"
+
+          grep -Fq "add_action( 'cfwp_contribution_adjustment_created'" "$bridge"
+          grep -Fq "add_action( 'cfwp_contribution_adjustment_reversed'" "$bridge"
+          grep -Fq 'reconcile_contribution( $contribution_id, false, self::SOURCE )' "$bridge"
+          grep -Fq 'reconcile_contribution( $contribution_id, true, self::SOURCE )' "$bridge"
+          grep -Fq '\$this->claims->reactivate(' "$bridge"
+
+          grep -Fq 'includes/class-reward-entitlement-reconciler.php' "$bootstrap"
+
+          if grep -Ei '\$wpdb|DELETE FROM|UPDATE .*reward_claim' "$reconciler"; then
+            echo 'Entitlement reconciler must operate through Core repositories only.'
+            exit 1
+          fi
+
+          if grep -Ei 'stock_remaining|remaining_stock|reward_stock' "$claims" "$reconciler" "$bridge"; then
+            echo 'Reward entitlement reconciliation must not introduce mutable stock authority.'
+            exit 1
+          fi
+
+          if grep -Ei 'DELETE FROM.*reward_claim|delete.*claim' "$claims" "$reconciler" "$bridge"; then
+            echo 'Reward claim history must remain reversible, not destructively deleted.'
+            exit 1
+          fi
