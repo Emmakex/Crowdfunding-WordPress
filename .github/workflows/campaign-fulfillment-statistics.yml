@@ -1,0 +1,74 @@
+name: Campaign Fulfillment Statistics
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  campaign-fulfillment-statistics-contract:
+    name: Campaign fulfillment statistics authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify fulfillment metrics remain aggregate, read-only and Core-owned
+        shell: bash
+        run: |
+          set -euo pipefail
+          query='includes/class-campaign-statistics-query.php'
+          surface='includes/class-campaign-statistics.php'
+
+          grep -Fq 'Reward_Fulfillments::statuses()' "$query"
+          grep -Fq "Reward_Fulfillments::table_name()" "$query"
+          grep -Fq "INNER JOIN ' . Reward_Claims::table_name() . ' rc ON rc.id = f.claim_id" "$query"
+          grep -Fq "INNER JOIN ' . Rewards::table_name() . ' r ON r.id = rc.reward_id" "$query"
+          grep -Fq 'WHERE r.campaign_id = %d GROUP BY f.status' "$query"
+          grep -Fq "Reward_Fulfillments::STATUS_PENDING" "$query"
+          grep -Fq "Reward_Fulfillments::STATUS_PROCESSING" "$query"
+          grep -Fq "Reward_Fulfillments::STATUS_FULFILLED" "$query"
+          grep -Fq "'fulfillment_pending_delivery'" "$query"
+          grep -Fq "'fulfillment_completion_percentage'" "$query"
+          grep -Fq '$operational_total   = $pending_delivery + $fulfilled;' "$query"
+          grep -Fq '$completion_percent  = $operational_total > 0 ? round( ( $fulfilled / $operational_total ) * 100, 1 ) : null;' "$query"
+
+          grep -Fq "Reward fulfillment" "$surface"
+          grep -Fq "Pending delivery" "$surface"
+          grep -Fq "Completion rate" "$surface"
+          grep -Fq "Reward_Fulfillments::STATUS_PENDING" "$surface"
+          grep -Fq "Reward_Fulfillments::STATUS_PROCESSING" "$surface"
+          grep -Fq "Reward_Fulfillments::STATUS_FULFILLED" "$surface"
+          grep -Fq "Reward_Fulfillments::STATUS_CANCELLED" "$surface"
+          grep -Fq "Cancelled fulfillment is reported separately and excluded from the rate." "$surface"
+
+          if grep -Eiq 'woocommerce|\bwc_|order_status|shop_order' "$query" "$surface"; then
+            echo 'Campaign fulfillment statistics must not use WooCommerce as fulfillment authority.'
+            exit 1
+          fi
+
+          if grep -Eq 'INSERT|UPDATE|DELETE|START TRANSACTION|COMMIT|ROLLBACK' "$query"; then
+            echo 'Campaign fulfillment statistics query must remain SELECT-only.'
+            exit 1
+          fi
+
+          if grep -Eq 'Reward_Fulfillment_Repository|->transition\(|->ensure_for_claim\(' "$query" "$surface"; then
+            echo 'Campaign statistics must not mutate fulfillment lifecycle state.'
+            exit 1
+          fi
+
+          if grep -Eiq 'user_id|user_email|email|billing|shipping|phone|customer|source_reference|tracking' "$query"; then
+            echo 'Campaign fulfillment statistics query must not return supporter identity, shipping data or technical references.'
+            exit 1
+          fi
+
+          if grep -Eiq 'user_email|billing|shipping|phone|customer|source_reference|tracking' "$surface"; then
+            echo 'Campaign fulfillment statistics surface must remain free of supporter PII and technical references.'
+            exit 1
+          fi
+
+          if grep -Eq 'SELECT[[:space:]]+\*' "$query"; then
+            echo 'Campaign fulfillment statistics must stay aggregate and must not fetch fulfillment rows individually.'
+            exit 1
+          fi
