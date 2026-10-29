@@ -1,0 +1,72 @@
+name: Notification Admin Operations
+
+on:
+  pull_request:
+    paths:
+      - 'includes/class-notification-deliveries.php'
+      - 'includes/class-notification-delivery-repository.php'
+      - 'includes/class-notification-settings.php'
+      - 'includes/class-notification-email-delivery.php'
+      - 'includes/class-notification-admin.php'
+      - 'includes/class-plugin.php'
+      - 'crowdfunding-wordpress.php'
+      - 'readme.txt'
+      - '.github/workflows/notification-admin-operations.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  notification-admin-operations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify administration, retry and release contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          schema='includes/class-notification-deliveries.php'
+          repo='includes/class-notification-delivery-repository.php'
+          settings='includes/class-notification-settings.php'
+          email='includes/class-notification-email-delivery.php'
+          admin='includes/class-notification-admin.php'
+          plugin='includes/class-plugin.php'
+          bootstrap='crowdfunding-wordpress.php'
+          readme='readme.txt'
+
+          grep -Fq "SCHEMA_VERSION        = '2'" "$schema"
+          grep -Fq 'message_key varchar(191)' "$schema"
+          grep -Fq 'UNIQUE KEY intent_channel (intent_key,channel)' "$schema"
+          grep -Fq 'public function list_recent(' "$repo"
+          grep -Fq 'public function find(' "$repo"
+          grep -Fq 'Notification_Settings::email_enabled()' "$email"
+          grep -Fq 'public static function retry_failed(' "$email"
+          grep -Fq "STATUS_FAILED" "$email"
+          grep -Fq "check_admin_referer( self::NONCE_RETRY" "$admin"
+          grep -Fq "current_user_can( 'manage_options' )" "$admin"
+          grep -Fq "Notification_Email_Delivery::retry_failed" "$admin"
+          grep -Fq "Notification_Admin" "$plugin"
+          grep -Fq "class-notification-settings.php" "$bootstrap"
+          grep -Fq "class-notification-admin.php" "$bootstrap"
+          grep -Fq 'Version:           0.7.0' "$bootstrap"
+          grep -Fq "define( 'CFWP_VERSION', '0.7.0' );" "$bootstrap"
+          grep -Fq 'Stable tag: 0.7.0' "$readme"
+          grep -Fq '= 0.7.0 =' "$readme"
+
+          if grep -Eiq 'billing_|shipping_|first_name|last_name|display_name' "$schema" "$repo" "$admin"; then
+            echo 'Notification operations must not persist or expose commerce/customer PII.' >&2
+            exit 1
+          fi
+
+          if grep -Eiq 'woocommerce|\bwc_' "$settings" "$email" "$admin"; then
+            echo 'Notification operations must remain independent from WooCommerce.' >&2
+            exit 1
+          fi
+
+          php -l "$schema"
+          php -l "$repo"
+          php -l "$settings"
+          php -l "$email"
+          php -l "$admin"
+          php -l "$plugin"
+          php -l "$bootstrap"

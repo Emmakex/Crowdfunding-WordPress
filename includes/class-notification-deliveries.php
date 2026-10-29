@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class Notification_Deliveries {
 	private const OPTION_SCHEMA_VERSION = 'cfwp_notification_deliveries_schema_version';
-	private const SCHEMA_VERSION        = '1';
+	private const SCHEMA_VERSION        = '2';
 
 	public static function maybe_install(): void {
 		if ( self::SCHEMA_VERSION !== (string) get_option( self::OPTION_SCHEMA_VERSION, '' ) ) {
@@ -24,11 +24,12 @@ final class Notification_Deliveries {
 	public static function install(): void {
 		global $wpdb;
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-		$table = self::table_name();
+		$table           = self::table_name();
 		$charset_collate = $wpdb->get_charset_collate();
 		$sql = "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			intent_key varchar(255) NOT NULL,
+			message_key varchar(191) NOT NULL DEFAULT '',
 			channel varchar(32) NOT NULL,
 			recipient_type varchar(32) NOT NULL,
 			recipient_id bigint(20) unsigned NOT NULL,
