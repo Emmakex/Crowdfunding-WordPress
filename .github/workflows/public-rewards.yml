@@ -1,0 +1,48 @@
+name: Public Rewards
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  public-rewards-contract:
+    name: Public rewards authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public rewards expose definitions without invented availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='includes/class-reward-display.php'
+          repo='includes/class-reward-repository.php'
+          views='includes/class-shortcodes.php'
+          checkout='includes/class-contribution-checkout.php'
+
+          grep -Fq "add_shortcode( 'crowdfunding_rewards'" "$file"
+          grep -Fq "add_filter( 'the_content', array( \$this, 'enhance_single_campaign_content' ), 25 )" "$file"
+          grep -Fq "'publish' !== \$campaign->post_status" "$file"
+          grep -Fq "list_for_campaign( \$campaign_id, true )" "$file"
+          grep -Fq "Reward_Repository::normalize_amount" "$file"
+          grep -Fq "\$claim_limit > 0" "$file"
+          grep -Fq "Limited to %d reward" "$file"
+          grep -Fq "if ( \$enabled_only )" "$repo"
+          grep -Fq "AND enabled = %d" "$repo"
+          grep -Fq "ORDER BY sort_order ASC, minimum_amount ASC, id ASC" "$repo"
+          grep -Fq "render_rewards( \$campaign->ID )" "$views"
+          grep -Fq "[crowdfunding_rewards id=\"%d\"]" "$views"
+          grep -Fq "enhance_single_campaign_content' ), 30" "$checkout"
+
+          if grep -Ei 'woocommerce|\bwc_|Contribution_Repository|Contribution_Adjustment|Reward_Claim_Repository|cfwp_reward_claims' "$file"; then
+            echo 'Public reward presentation must remain independent from checkout, financial ledgers and claims.'
+            exit 1
+          fi
+
+          if grep -Ei '\bremaining\b|\bclaimed\b|\bavailable[[:space:]_-]*count\b|stock_remaining' "$file"; then
+            echo 'Public rewards cannot invent remaining/claimed availability before the claims ledger exists.'
+            exit 1
+          fi
