@@ -1,0 +1,77 @@
+.cfwp-contribution-dashboard {
+	display: grid;
+	gap: 1.25rem;
+	margin: 1.25rem 0;
+}
+
+.cfwp-contribution-dashboard__header h2,
+.cfwp-contribution-dashboard__header p {
+	margin-top: 0;
+}
+
+.cfwp-contribution-dashboard__list {
+	display: grid;
+	gap: 1rem;
+}
+
+.cfwp-contribution-card {
+	display: grid;
+	gap: 1rem;
+	padding: 1rem;
+	border: 1px solid currentColor;
+	border-radius: 0.6rem;
+}
+
+.cfwp-contribution-card__header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.5rem 1rem;
+}
+
+.cfwp-contribution-card__header h3,
+.cfwp-contribution-card__header time {
+	margin: 0;
+}
+
+.cfwp-contribution-card__facts {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+	gap: 0.75rem;
+	margin: 0;
+}
+
+.cfwp-contribution-card__facts div {
+	display: grid;
+	gap: 0.2rem;
+}
+
+.cfwp-contribution-card__facts dt,
+.cfwp-contribution-card__facts dd {
+	margin: 0;
+}
+
+.cfwp-contribution-card__facts dt {
+	font-size: 0.875em;
+	opacity: 0.75;
+}
+
+.cfwp-contribution-card__rewards h4,
+.cfwp-contribution-card__rewards p,
+.cfwp-contribution-card__rewards ul {
+	margin-top: 0;
+}
+
+.cfwp-contribution-card__rewards ul {
+	padding-left: 1.25rem;
+	margin-bottom: 0;
+}
+
+.cfwp-pagination {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 0.75rem 1rem;
+}
