@@ -25,7 +25,7 @@ jobs:
           bootstrap='crowdfunding-wordpress.php'
           plugin='includes/class-plugin.php'
 
-          grep -Fq "private const SCHEMA_VERSION        = '2';" "$promoters"
+          grep -Fq "private const OPTION_SCHEMA_VERSION = 'cfwp_roles_schema_version';" "$promoters"
           grep -Fq "'manage_cfwp_fulfillments'       => true" "$promoters"
           grep -Fq "'manage_cfwp_fulfillments'," "$promoters"
 
