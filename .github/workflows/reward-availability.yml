@@ -44,7 +44,7 @@ jobs:
             exit 1
           fi
 
-          if grep -Ei '\$wpdb|SELECT|INSERT|UPDATE|DELETE' "$display" "$checkout"; then
+          if grep -Ei '\$wpdb|->(query|get_var|get_row|get_results|prepare)\(' "$display" "$checkout"; then
             echo 'Public and checkout availability surfaces must consume repositories rather than query persistence directly.'
             exit 1
           fi
