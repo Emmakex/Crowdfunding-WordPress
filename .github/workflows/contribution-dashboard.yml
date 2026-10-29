@@ -20,6 +20,8 @@ jobs:
           set -euo pipefail
           dashboard='includes/class-contribution-dashboard.php'
           query='includes/class-contribution-dashboard-query.php'
+          contributions='includes/class-contributions.php'
+          claims='includes/class-reward-claims.php'
           bootstrap='crowdfunding-wordpress.php'
           plugin='includes/class-plugin.php'
 
@@ -33,6 +35,8 @@ jobs:
           grep -Fq "Contribution_Adjustments::STATUS_APPLIED" "$query"
           grep -Fq "Reward_Claims::table_name()" "$query"
           grep -Fq "Rewards::table_name()" "$query"
+          grep -Fq "KEY user_id (user_id)" "$contributions"
+          grep -Fq "KEY contribution_id (contribution_id)" "$claims"
           grep -Fq "includes/class-contribution-dashboard-query.php" "$bootstrap"
           grep -Fq "includes/class-contribution-dashboard.php" "$bootstrap"
           grep -Fq "Contribution_Dashboard" "$plugin"
