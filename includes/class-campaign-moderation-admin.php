@@ -165,7 +165,7 @@ final class Campaign_Moderation_Admin {
 			return;
 		}
 
-		$current = Campaign_Moderation::status_for_campaign( $campaign_id );
+		$current  = Campaign_Moderation::status_for_campaign( $campaign_id );
 		$back_url = add_query_arg(
 			array(
 				'post_type' => Campaigns::POST_TYPE,
@@ -263,7 +263,7 @@ final class Campaign_Moderation_Admin {
 		}
 	}
 
-	private function redirect_result( int $campaign_id, string $result, string $error ): never {
+	private function redirect_result( int $campaign_id, string $result, string $error ): void {
 		$args = array(
 			'post_type'              => Campaigns::POST_TYPE,
 			'page'                   => self::PAGE_SLUG,
@@ -303,7 +303,7 @@ final class Campaign_Moderation_Admin {
 
 	private function editorial_status_label( string $status ): string {
 		$object = get_post_status_object( $status );
-		return $object instanceof \stdClass && isset( $object->label ) ? (string) $object->label : sanitize_key( $status );
+		return is_object( $object ) && isset( $object->label ) ? (string) $object->label : sanitize_key( $status );
 	}
 
 	private function actor_label( int $user_id ): string {
