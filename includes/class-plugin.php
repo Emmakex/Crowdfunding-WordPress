@@ -25,6 +25,7 @@ final class Plugin {
 	private Campaign_Progress $campaign_progress;
 	private WooCommerce_Adapter $woocommerce_adapter;
 	private WooCommerce_Refund_Adapter $woocommerce_refund_adapter;
+	private WooCommerce_Reward_Adapter $woocommerce_reward_adapter;
 	private Contribution_Checkout $contribution_checkout;
 	private bool $running = false;
 
@@ -41,6 +42,7 @@ final class Plugin {
 		$this->campaign_progress          = new Campaign_Progress();
 		$this->woocommerce_adapter        = new WooCommerce_Adapter();
 		$this->woocommerce_refund_adapter = new WooCommerce_Refund_Adapter();
+		$this->woocommerce_reward_adapter = new WooCommerce_Reward_Adapter();
 		$this->contribution_checkout      = new Contribution_Checkout();
 	}
 
@@ -61,6 +63,7 @@ final class Plugin {
 
 		$this->woocommerce_adapter->register();
 		$this->woocommerce_refund_adapter->register();
+		$this->woocommerce_reward_adapter->register();
 		$this->contribution_checkout->register();
 
 		add_action( 'init', array( Promoters::class, 'maybe_install' ), 1 );
