@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.6.0
+Stable tag: 0.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,6 +23,9 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * `submitted`, `in_review`, `approved` and `rejected` moderation states with an explicit transition graph.
 * Dedicated `moderate_cfwp_campaigns` authority granted to administrators and explicitly denied to promoters.
 * New frontend campaign submissions remain WordPress `pending` while independently entering Core moderation as `submitted`.
+* Versioned, bounded moderation backfill for eligible pre-0.6.0 campaigns that still lack moderation metadata.
+* Legacy WordPress `pending` campaigns map to Core `submitted`; legacy `publish` campaigns are grandfathered as Core `approved` for compatibility.
+* Draft/private/trash campaigns and campaigns with any existing moderation metadata are never rewritten by the compatibility backfill.
 * Public campaign catalogue and campaign detail shortcodes.
 * Authoritative net raised amount derived from confirmed contributions minus applied refund adjustments.
 * Frontend promoter registration, campaign submission, editing and personal dashboard.
@@ -88,11 +91,15 @@ Version 0.6.0 introduces an independent Core moderation authority stored as `_cf
 
 New frontend submissions therefore keep `post_status = pending` and independently receive Core moderation state `submitted`. Moderation never automatically publishes, unpublishes or changes campaign visibility in this foundation.
 
-The initial state graph is: no moderation state → `submitted`; `submitted` → `in_review`, `approved` or `rejected`; `in_review` → `approved` or `rejected`; `rejected` → `submitted`; `approved` is terminal in 0.6.0. The graph is defined as Core policy, but no moderation UI or decision action is introduced yet.
+The initial state graph is: no moderation state → `submitted`; `submitted` → `in_review`, `approved` or `rejected`; `in_review` → `approved` or `rejected`; `rejected` → `submitted`; `approved` is terminal in the current foundation. The graph is defined as Core policy, but no moderation UI or decision action is introduced yet.
 
 The dedicated `moderate_cfwp_campaigns` capability belongs to administrators. Promoters are explicitly denied that capability even though they may edit their own draft/pending campaigns and manage fulfillment through separate authorities.
 
-Campaigns created before 0.6.0 are deliberately not assigned a moderation decision by guessing from their current WordPress `post_status`. Legacy/backfill compatibility will be handled as a separate versioned migration so historical editorial state is not silently rewritten as moderation evidence.
+Version 0.6.1 adds a separate compatibility backfill for campaigns that predate the moderation authority and still have no `_cfwp_moderation_status`. It processes at most 50 campaigns per request by default, is filterable with a hard maximum of 200, and records completion only when no eligible legacy row remains.
+
+Legacy WordPress `pending` campaigns are classified as Core `submitted`. Legacy WordPress `publish` campaigns are grandfathered as Core `approved` so already-public campaigns remain compatible with the new moderation model. This grandfathered `approved` value is a compatibility classification, not evidence that Crowdfunding WordPress historically recorded an approval decision.
+
+Draft, private, trash and other editorial states are not inferred into moderation. Any campaign that already has moderation metadata—including invalid metadata requiring administrator review—is skipped rather than overwritten. The bootstrap uses unique meta insertion and rechecks concurrent writes, while leaving WordPress `post_status` untouched.
 
 == Contributions and adjustments ==
 
@@ -272,11 +279,11 @@ Displays the current user's draft, pending and published campaigns. Optional `pe
 
 = Is campaign moderation the same as WordPress post status? =
 
-No. Version 0.6.0 introduces a separate Core moderation state. A campaign can be WordPress `pending` while Core moderation is `submitted` or `in_review`. Moderation does not publish or change visibility by itself.
+No. Core moderation is separate from WordPress editorial state. A campaign can be WordPress `pending` while Core moderation is `submitted` or `in_review`. Moderation does not publish or change visibility by itself.
 
-= Are existing campaigns automatically marked approved or submitted in 0.6.0? =
+= How are campaigns created before moderation existed handled? =
 
-No. Existing campaigns are not assigned a historical moderation decision by guessing from their current `post_status`. A later compatibility migration can translate legacy state explicitly and audibly.
+Version 0.6.1 performs a bounded compatibility backfill only for campaigns with no moderation metadata. Legacy `pending` maps to `submitted`; legacy `publish` is grandfathered as `approved`. Draft/private/trash campaigns are not inferred, and any existing moderation metadata is left untouched. Grandfathered `approved` is compatibility state, not proof of a historical review event.
 
 = Can the contribution dashboard show another user's contributions? =
 
@@ -359,6 +366,15 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.6.1 =
+* Added a versioned, bounded and retry-safe moderation compatibility backfill for pre-0.6.0 campaigns with no moderation metadata.
+* Legacy WordPress `pending` campaigns map to Core `submitted` without changing editorial state.
+* Legacy WordPress `publish` campaigns are grandfathered as Core `approved` for compatibility; this is not represented as evidence of a historical review decision.
+* Draft, private, trash and other editorial states are not inferred into moderation.
+* Existing valid or invalid moderation metadata is never overwritten by the backfill.
+* Added unique insert-only legacy bootstrap authority with concurrent-write rechecks.
+* Added completion/error hooks and a dedicated regression guard; WooCommerce, contribution, reward and fulfillment authorities remain untouched.
 
 = 0.6.0 =
 * Added independent Core campaign moderation status separate from WordPress editorial `post_status`.
