@@ -15,6 +15,7 @@ final class Plugin {
 	private static ?Plugin $instance = null;
 	private Campaigns $campaigns;
 	private Campaign_Admin $campaign_admin;
+	private Campaign_Moderation_Admin $campaign_moderation_admin;
 	private Campaign_Moderation_Backfill_Reconciler $campaign_moderation_backfill_reconciler;
 	private Shortcodes $shortcodes;
 	private Campaign_Submission $campaign_submission;
@@ -40,6 +41,7 @@ final class Plugin {
 	private function __construct() {
 		$this->campaigns                              = new Campaigns();
 		$this->campaign_admin                         = new Campaign_Admin();
+		$this->campaign_moderation_admin              = new Campaign_Moderation_Admin();
 		$this->campaign_moderation_backfill_reconciler = new Campaign_Moderation_Backfill_Reconciler();
 		$this->shortcodes                             = new Shortcodes();
 		$this->campaign_submission                    = new Campaign_Submission();
@@ -113,6 +115,7 @@ final class Plugin {
 
 		if ( is_admin() ) {
 			$this->campaign_admin->register();
+			$this->campaign_moderation_admin->register();
 		}
 	}
 

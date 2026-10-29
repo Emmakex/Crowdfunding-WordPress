@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → independent Core moderation state + immutable moderator decisions → WordPress editorial publication → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit/health → account/campaign/portfolio dashboards`
+`Campaign → independent Core moderation state + immutable moderator decisions → moderation operations UI → WordPress editorial publication → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit/health → account/campaign/portfolio dashboards`
 
 Campaigns, campaign moderation, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WordPress `post_status` remains the editorial publication/visibility mechanism and is not the moderation authority. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but moderation, entitlement, availability, fulfillment, reconciliation health, account dashboards, campaign statistics and promoter portfolio statistics remain separate Core authorities.
 
-As of **0.6.2**, the repository includes:
+As of **0.6.3**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - independent Core campaign moderation state with `submitted`, `in_review`, `approved` and `rejected` states;
@@ -34,6 +34,9 @@ As of **0.6.2**, the repository includes:
 - transactional moderator decision authority for `submitted → in_review/approved/rejected` and `in_review → approved/rejected`;
 - immutable campaign-moderation decision events with moderator user ID, source/reference idempotency and chronological reads;
 - atomic Core moderation state + audit-event commits with rollback on failure;
+- native WordPress moderation queue for `submitted` and `in_review` campaigns;
+- campaign moderation detail with current Core/editorial state, repository-governed actions and immutable decision history;
+- per-form UUID idempotency references and nonce/capability protection for every administrative decision request;
 - promoter registration, submission, editing and dashboard flows;
 - payment-provider-neutral contribution ledger with idempotency;
 - immutable original contribution amounts and refund-safe adjustments;
@@ -89,6 +92,11 @@ As of **0.6.2**, the repository includes:
 - Replaying an existing source/reference is idempotent only when it identifies the same campaign and target state; conflicting reuse fails closed.
 - Missing, duplicated or invalid moderation metadata is never guessed during a moderator decision; it requires administrator review.
 - Legacy backfill classifications and ordinary promoter submissions are not retroactively fabricated as moderator decision events.
+- The moderation operations UI is a thin administrative client of `Campaign_Moderation_Repository`; it never writes moderation meta directly.
+- The moderation queue contains only current `submitted` and `in_review` campaigns and does not infer submission time from WordPress modified dates.
+- Every UI decision request is capability checked, nonce protected and carries a generated UUID that becomes the stable `admin_ui` idempotency reference.
+- The moderation detail view reads the immutable Core event ledger for history and never updates or deletes audit rows.
+- Opening the WordPress campaign editor remains a separate editorial action; approving in moderation does not publish the campaign.
 - WooCommerce is the commerce/payment integration layer, not the owner of campaign, moderation, reward, claim, fulfillment or dashboard domain logic.
 - Reward definitions are Core records, never WooCommerce products by definition.
 - Reward selection is transport evidence, not a reservation or claim.
