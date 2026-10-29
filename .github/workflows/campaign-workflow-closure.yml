@@ -1,0 +1,66 @@
+name: Campaign Moderation Workflow Closure
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  campaign-workflow-closure-contract:
+    name: Moderation workflow closure contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify reviewed campaigns cannot bypass approval through publication or deletion
+        shell: bash
+        run: |
+          set -euo pipefail
+          moderation='includes/class-campaign-moderation.php'
+          editing='includes/class-campaign-editing-policy.php'
+          policy='includes/class-campaign-workflow-policy.php'
+          plugin='includes/class-plugin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq "public static function is_publication_eligible" "$moderation"
+          grep -Fq "get_post_meta( \$campaign_id, self::META_STATUS, false )" "$moderation"
+          grep -Fq "if ( empty( \$stored ) )" "$moderation"
+          grep -Fq "if ( 1 !== count( \$stored ) )" "$moderation"
+          grep -Fq "self::STATUS_APPROVED === \$status" "$moderation"
+
+          grep -Fq "return array( 'publish', 'future', 'private' );" "$policy"
+          grep -Fq "add_filter( 'wp_insert_post_data'" "$policy"
+          grep -Fq "Campaign_Moderation::is_publication_eligible( \$campaign_id )" "$policy"
+          grep -Fq "in_array( \$current_status, self::publication_statuses(), true )" "$policy"
+          grep -Fq "\$data['post_status'] = in_array( \$current_status, array( 'draft', 'pending' ), true ) ? \$current_status : 'pending';" "$policy"
+          grep -Fq "rest_pre_insert_" "$policy"
+          grep -Fq "cfwp_moderation_publication_blocked" "$policy"
+          grep -Fq "array( 'status' => 409 )" "$policy"
+
+          grep -Fq "add_filter( 'map_meta_cap'" "$policy"
+          grep -Fq "'delete_post' !== \$cap" "$policy"
+          grep -Fq "Campaign_Editing_Policy::is_locked( \$campaign->ID )" "$policy"
+          grep -Fq "\$user->has_cap( 'moderate_cfwp_campaigns' )" "$policy"
+          grep -Fq "return array( 'do_not_allow' );" "$policy"
+          grep -Fq "Campaign_Moderation::STATUS_REJECTED" "$editing" && {
+            echo 'Rejected campaigns must remain outside the editing/deletion lock.' >&2
+            exit 1
+          } || true
+
+          grep -Fq "require_once CFWP_PLUGIN_DIR . 'includes/class-campaign-workflow-policy.php';" "$bootstrap"
+          grep -Fq "Campaign_Workflow_Policy::register();" "$plugin"
+
+          if grep -Eq 'update_post_meta|add_post_meta|delete_post_meta|wp_update_post|wp_publish_post|wp_insert_post' "$policy"; then
+            echo 'Workflow policy must enforce eligibility without writing Core moderation or invoking publication APIs.' >&2
+            exit 1
+          fi
+          if grep -Fq "Campaign_Moderation_Repository" "$policy"; then
+            echo 'Workflow policy must not become a moderation transition authority.' >&2
+            exit 1
+          fi
+          if grep -Eiq 'woocommerce|\bwc_' "$policy" "$moderation"; then
+            echo 'Moderation workflow closure must remain independent from WooCommerce.' >&2
+            exit 1
+          fi
