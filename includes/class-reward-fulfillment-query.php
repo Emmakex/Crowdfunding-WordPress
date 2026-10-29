@@ -51,4 +51,28 @@ final class Reward_Fulfillment_Query {
 
 		return is_array( $row ) ? $row : null;
 	}
+
+	/**
+	 * Read the immutable audit history for one fulfillment.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function list_events( int $fulfillment_id ): array {
+		global $wpdb;
+
+		$fulfillment_id = absint( $fulfillment_id );
+		if ( $fulfillment_id <= 0 ) {
+			return array();
+		}
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT id, fulfillment_id, from_status, to_status, source, source_reference, created_at FROM ' . Reward_Fulfillments::events_table_name() . ' WHERE fulfillment_id = %d ORDER BY id ASC',
+				$fulfillment_id
+			),
+			ARRAY_A
+		);
+
+		return is_array( $rows ) ? $rows : array();
+	}
 }
