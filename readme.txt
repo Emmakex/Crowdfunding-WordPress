@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.6.5
+Stable tag: 0.6.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,10 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Moderation-aware campaign content locking prevents non-moderators from editing while Core state is `submitted`, `in_review` or `approved`.
 * The editing lock is enforced through WordPress `edit_post` capability mapping plus frontend render/POST reauthorization, so stale forms and REST/editor paths cannot bypass it.
 * `rejected` campaigns remain editable so their owner can make changes before explicit resubmission.
+* Campaigns that have entered Core moderation can newly enter WordPress `publish`, `future` or `private` only when the single valid Core state is `approved`.
+* Invalid or duplicated moderation metadata fails closed for new publication attempts, while campaigns with no moderation metadata retain editorial compatibility.
+* REST publication attempts return an explicit conflict when Core moderation is not publication-eligible.
+* Non-moderators cannot delete `submitted`, `in_review` or `approved` campaign snapshots; `rejected` remains correctable and removable.
 * Promoter dashboard and editor surface WordPress editorial state separately from Core moderation state.
 * Public campaign catalogue and campaign detail shortcodes.
 * Authoritative net raised amount derived from confirmed contributions minus applied refund adjustments.
@@ -139,6 +143,12 @@ The promoter dashboard now labels WordPress editorial status and Core moderation
 Version 0.6.5 adds a moderation-aware campaign editing lock. For users without `moderate_cfwp_campaigns`, campaign content is locked while Core moderation is `submitted`, `in_review` or `approved`. `rejected` remains editable so the owner can make corrections before explicitly resubmitting, and campaigns with no moderation state retain their existing draft/pending editing rules.
 
 The lock is enforced through WordPress `map_meta_cap` for `edit_post` and is also rechecked by the frontend editor before rendering or accepting a POST. This protects the reviewed campaign snapshot across frontend, REST and stale-form paths without modifying `post_status`, moderation state or publication authority. Administrators with moderator authority are exempt from this promoter-facing lock and retain their separate WordPress editorial permissions.
+
+Version 0.6.6 closes the moderation workflow boundary around WordPress publication and destructive deletion. Once an existing campaign has entered Core moderation, it may newly enter editorial `publish`, `future` or `private` only when exactly one valid moderation value exists and that value is `approved`. Invalid or duplicated moderation metadata therefore fails closed for publication.
+
+This is an eligibility gate, not publication authority: an approval never calls a WordPress publication API and still requires the separate WordPress user capability and editorial action. Campaigns with no moderation metadata retain their existing compatibility, and already-published legacy content is never silently demoted by the gate.
+
+The same rule is enforced through `wp_insert_post_data` for normal/programmatic WordPress writes and through an explicit REST conflict for API updates. Classic-editor attempts remain in their previous draft/pending state and surface an administrator notice. Non-moderators are also denied `delete_post` while the existing moderation editing lock is active; `rejected` campaigns remain outside that lock so owners can correct or remove them. This closes the 0.6.x moderation and campaign-workflow milestone without changing the state graph, moderator decision repository, WooCommerce or any crowdfunding financial/reward authority.
 
 == Contributions and adjustments ==
 
@@ -262,9 +272,9 @@ The checkout uses a hidden virtual WooCommerce product as a transport line only.
 
 The `cfwp_promoter` role can create and edit its own draft or pending campaigns only while Core moderation does not lock the campaign snapshot. Promoters cannot moderate or publish campaigns, edit published campaigns or manage campaigns owned by other users.
 
-For non-moderators, `submitted`, `in_review` and `approved` campaign content is locked through the normal WordPress `edit_post` capability path. A promoter whose own `pending` campaign is Core `rejected` can still save editorial changes and then explicitly resubmit that campaign to `submitted`. This promoter path does not grant `moderate_cfwp_campaigns`, cannot approve/reject campaigns and does not change WordPress publication state.
+For non-moderators, `submitted`, `in_review` and `approved` campaign content is locked through the normal WordPress `edit_post` capability path. The same locked states cannot be deleted by a promoter. A promoter whose own `pending` campaign is Core `rejected` can still save editorial changes, delete it if desired, or explicitly resubmit that campaign to `submitted`. This promoter path does not grant `moderate_cfwp_campaigns`, cannot approve/reject campaigns and does not change WordPress publication state.
 
-Administrators retain the dedicated `moderate_cfwp_campaigns` authority as well as publication and cross-campaign fulfillment/statistics supervision.
+Administrators retain the dedicated `moderate_cfwp_campaigns` authority as well as publication and cross-campaign fulfillment/statistics supervision. For campaigns that have entered moderation, WordPress publication remains a separate administrator action but Core `approved` is a prerequisite.
 
 == Shortcodes ==
 
@@ -350,6 +360,10 @@ No. The immutable administrator decision event that recorded the rejection remai
 
 No. Core moderation and WordPress editorial publication remain separate. An `approved` moderation state never calls WordPress publish/unpublish APIs or changes `post_status` by itself.
 
+= Can a campaign that entered moderation be published before approval? =
+
+No. From version 0.6.6, an existing campaign with Core moderation metadata may newly enter WordPress `publish`, `future` or `private` only when exactly one valid moderation state exists and it is `approved`. Invalid or duplicated moderation metadata also blocks publication. Campaigns that never entered moderation retain their existing editorial compatibility, and already-published legacy campaigns are not silently demoted.
+
 = Can the contribution dashboard show another user's contributions? =
 
 No. The shortcode derives account identity exclusively from the signed-in WordPress user. It does not accept a user ID parameter from the browser.
@@ -431,6 +445,16 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.6.6 =
+* Added publication eligibility for campaigns that have entered Core moderation: only a single valid `approved` state can newly enter WordPress `publish`, `future` or `private`.
+* Invalid or duplicated moderation metadata now fails closed for new publication attempts.
+* Preserved editorial compatibility for campaigns with no moderation metadata and never silently demotes already-published legacy content.
+* Added an explicit REST conflict for blocked publication attempts and a classic-editor notice while preserving the previous draft/pending state.
+* Added moderation-aware `delete_post` protection so non-moderators cannot remove `submitted`, `in_review` or `approved` campaign snapshots.
+* Kept `rejected` campaigns editable/removable so owners can correct, abandon or explicitly resubmit them.
+* Kept approval as eligibility only: Core moderation never invokes WordPress publish/schedule/private APIs.
+* Closed the 0.6.x moderation and campaign-workflow milestone without changing WooCommerce, contribution, reward or fulfillment authorities.
 
 = 0.6.5 =
 * Added a moderation-aware campaign content editing lock for non-moderators while Core state is `submitted`, `in_review` or `approved`.
@@ -545,7 +569,7 @@ No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference 
 * Added `[crowdfunding_fulfillment_audit]` as a campaign-scoped read-only fulfillment timeline.
 * Added immutable event reads to `Reward_Fulfillment_Query`, ordered chronologically by event ID.
 * Timeline shows transition, timestamp, event origin, stable source reference and event ID.
-* Reused the existing `manage_cfwp_fulfillments` owner/admin authority without adding campaign-edit permissions.
+* Reused the existing `manage_cfwp_fulfillments` owner/admin campaign boundary as fulfillment management but registers no write action.
 * Kept audit separate from write actions, repository transitions, WooCommerce and customer/shipping PII.
 
 = 0.4.10 =
