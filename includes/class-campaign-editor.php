@@ -62,11 +62,12 @@ final class Campaign_Editor {
 		$notice = isset( $_GET['cfwp_notice'] ) ? sanitize_key( wp_unslash( $_GET['cfwp_notice'] ) ) : '';
 		$error  = isset( $_GET['cfwp_error'] ) ? sanitize_key( wp_unslash( $_GET['cfwp_error'] ) ) : '';
 
-		$goal_amount = (float) get_post_meta( $campaign->ID, Campaigns::META_GOAL_AMOUNT, true );
-		$currency    = (string) get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true );
-		$deadline    = (string) get_post_meta( $campaign->ID, Campaigns::META_DEADLINE, true );
-		$redirect_url = get_permalink() ?: home_url( '/' );
-		$redirect_url = add_query_arg( self::QUERY_CAMPAIGN_ID, $campaign->ID, $redirect_url );
+		$goal_amount      = (float) get_post_meta( $campaign->ID, Campaigns::META_GOAL_AMOUNT, true );
+		$currency         = (string) get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true );
+		$deadline         = (string) get_post_meta( $campaign->ID, Campaigns::META_DEADLINE, true );
+		$moderation_status = Campaign_Moderation::status_for_campaign( $campaign->ID );
+		$redirect_url      = get_permalink() ?: home_url( '/' );
+		$redirect_url      = add_query_arg( self::QUERY_CAMPAIGN_ID, $campaign->ID, $redirect_url );
 
 		ob_start();
 
@@ -76,12 +77,27 @@ final class Campaign_Editor {
 				<?php esc_html_e( 'Your campaign changes have been saved.', 'crowdfunding-wordpress' ); ?>
 			</p>
 			<?php
+		} elseif ( 'resubmitted' === $notice ) {
+			?>
+			<p class="cfwp-notice cfwp-notice--success">
+				<?php esc_html_e( 'Your campaign has been resubmitted for another review.', 'crowdfunding-wordpress' ); ?>
+			</p>
+			<?php
 		}
 
 		if ( '' !== $error ) {
 			?>
 			<p class="cfwp-notice cfwp-notice--error">
 				<?php echo esc_html( $this->error_message( $error ) ); ?>
+			</p>
+			<?php
+		}
+
+		if ( '' !== $moderation_status ) {
+			?>
+			<p class="cfwp-notice">
+				<?php esc_html_e( 'Moderation status:', 'crowdfunding-wordpress' ); ?>
+				<strong><?php echo esc_html( $this->moderation_status_label( $moderation_status ) ); ?></strong>
 			</p>
 			<?php
 		}
@@ -128,6 +144,7 @@ final class Campaign_Editor {
 				<button type="submit"><?php esc_html_e( 'Save campaign changes', 'crowdfunding-wordpress' ); ?></button>
 			</p>
 		</form>
+		<?php echo Campaign_Resubmission::render_form( $campaign, $redirect_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		<?php
 
 		return (string) ob_get_clean();
@@ -256,17 +273,30 @@ final class Campaign_Editor {
 
 	private function error_message( string $error ): string {
 		$messages = array(
-			'security'   => __( 'The campaign update could not be verified. Please try again.', 'crowdfunding-wordpress' ),
-			'permission' => __( 'This campaign cannot be edited from your promoter account.', 'crowdfunding-wordpress' ),
+			'security'   => __( 'The campaign request could not be verified. Please try again.', 'crowdfunding-wordpress' ),
+			'permission' => __( 'This campaign cannot be edited or resubmitted from your promoter account.', 'crowdfunding-wordpress' ),
 			'title'      => __( 'Add a campaign title before saving.', 'crowdfunding-wordpress' ),
 			'content'    => __( 'Add the campaign story before saving.', 'crowdfunding-wordpress' ),
 			'goal'       => __( 'Enter a funding goal greater than zero.', 'crowdfunding-wordpress' ),
 			'currency'   => __( 'Enter a valid three-letter ISO currency code.', 'crowdfunding-wordpress' ),
 			'deadline'   => __( 'Enter a valid campaign deadline that is not in the past.', 'crowdfunding-wordpress' ),
 			'save'       => __( 'The campaign changes could not be saved. Please try again.', 'crowdfunding-wordpress' ),
+			'state'      => __( 'Only a currently rejected campaign can be resubmitted for review.', 'crowdfunding-wordpress' ),
+			'moderation' => __( 'The campaign could not re-enter the moderation workflow. Please contact the site administrator.', 'crowdfunding-wordpress' ),
 		);
 
 		return $messages[ $error ] ?? __( 'The campaign could not be updated.', 'crowdfunding-wordpress' );
+	}
+
+	private function moderation_status_label( string $status ): string {
+		$labels = array(
+			Campaign_Moderation::STATUS_SUBMITTED => __( 'Submitted', 'crowdfunding-wordpress' ),
+			Campaign_Moderation::STATUS_IN_REVIEW => __( 'In review', 'crowdfunding-wordpress' ),
+			Campaign_Moderation::STATUS_APPROVED  => __( 'Approved', 'crowdfunding-wordpress' ),
+			Campaign_Moderation::STATUS_REJECTED  => __( 'Rejected', 'crowdfunding-wordpress' ),
+		);
+
+		return $labels[ $status ] ?? $status;
 	}
 
 	private function enqueue_assets(): void {
