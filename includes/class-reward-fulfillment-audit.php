@@ -209,5 +209,11 @@ final class Reward_Fulfillment_Audit {
 			array(),
 			CFWP_VERSION
 		);
+		wp_enqueue_style(
+			'crowdfunding-wordpress-fulfillment-audit',
+			CFWP_PLUGIN_URL . 'assets/css/fulfillment-audit.css',
+			array( 'crowdfunding-wordpress-public' ),
+			CFWP_VERSION
+		);
 	}
 }
