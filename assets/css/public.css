@@ -263,6 +263,39 @@
 	height: 0.5rem;
 }
 
+.cfwp-reward-manager,
+.cfwp-reward-manager__list,
+.cfwp-reward-manager__item {
+	display: grid;
+	gap: 1rem;
+}
+
+.cfwp-reward-manager__create,
+.cfwp-reward-manager__item {
+	padding: 1rem;
+	border: 1px solid currentColor;
+	border-radius: 0.6rem;
+}
+
+.cfwp-reward-manager__create h3,
+.cfwp-reward-manager__list h3 {
+	margin-top: 0;
+}
+
+.cfwp-reward-manager__toggle {
+	margin: 0;
+}
+
+.cfwp-reward-manager__toggle button {
+	padding: 0.65rem 0.9rem;
+	border: 1px solid currentColor;
+	border-radius: 0.35rem;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
 @media (max-width: 34rem) {
 	.cfwp-contribution-form {
 		grid-template-columns: 1fr;
