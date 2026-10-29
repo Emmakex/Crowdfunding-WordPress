@@ -1,0 +1,70 @@
+name: Notification Delivery Stack
+
+on:
+  pull_request:
+    paths:
+      - 'includes/class-notification-deliveries.php'
+      - 'includes/class-notification-delivery-repository.php'
+      - 'includes/class-notification-destination-resolver.php'
+      - 'includes/class-notification-message-renderer.php'
+      - 'includes/class-notification-email-delivery.php'
+      - 'includes/class-plugin.php'
+      - 'includes/class-activator.php'
+      - 'crowdfunding-wordpress.php'
+      - '.github/workflows/notification-delivery-stack.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  notification-delivery-stack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify delivery stack contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ledger='includes/class-notification-deliveries.php'
+          repo='includes/class-notification-delivery-repository.php'
+          destination='includes/class-notification-destination-resolver.php'
+          renderer='includes/class-notification-message-renderer.php'
+          email='includes/class-notification-email-delivery.php'
+          plugin='includes/class-plugin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq "UNIQUE KEY intent_channel (intent_key,channel)" "$ledger"
+          grep -Fq "public function claim(" "$repo"
+          grep -Fq "FOR UPDATE" "$repo"
+          grep -Fq "STATUS_SENT" "$repo"
+          grep -Fq "STATUS_FAILED" "$repo"
+          grep -Fq "user_email" "$destination"
+          grep -Fq "is_email" "$destination"
+          grep -Fq "Notification_Message_Renderer" "$renderer"
+          grep -Fq "wp_mail(" "$email"
+          grep -Fq "cfwp_notification_delivery_succeeded" "$email"
+          grep -Fq "cfwp_notification_delivery_failed" "$email"
+          grep -Fq "Notification_Email_Delivery::register();" "$plugin"
+          grep -Fq "Notification_Deliveries::class, 'maybe_install'" "$plugin"
+          grep -Fq "class-notification-email-delivery.php" "$bootstrap"
+
+          if grep -Eiq 'user_email|billing_|shipping_|first_name|last_name|display_name|@' "$ledger" "$repo"; then
+            echo 'Delivery ledger/repository must not persist recipient PII.' >&2
+            exit 1
+          fi
+
+          if grep -Eiq 'woocommerce|\bwc_' "$destination" "$renderer" "$email"; then
+            echo 'Delivery stack must not depend directly on WooCommerce.' >&2
+            exit 1
+          fi
+
+          if grep -Eq 'wp_update_post[[:space:]]*\(|update_post_meta[[:space:]]*\(|add_post_meta[[:space:]]*\(|delete_post_meta[[:space:]]*\(' "$destination" "$renderer" "$email"; then
+            echo 'Notification delivery must not mutate crowdfunding domain state.' >&2
+            exit 1
+          fi
+
+          php -l "$ledger"
+          php -l "$repo"
+          php -l "$destination"
+          php -l "$renderer"
+          php -l "$email"
