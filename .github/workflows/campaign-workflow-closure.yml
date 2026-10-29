@@ -44,10 +44,10 @@ jobs:
           grep -Fq "Campaign_Editing_Policy::is_locked( \$campaign->ID )" "$policy"
           grep -Fq "\$user->has_cap( 'moderate_cfwp_campaigns' )" "$policy"
           grep -Fq "return array( 'do_not_allow' );" "$policy"
-          grep -Fq "Campaign_Moderation::STATUS_REJECTED" "$editing" && {
+          if grep -Fq "Campaign_Moderation::STATUS_REJECTED" "$editing"; then
             echo 'Rejected campaigns must remain outside the editing/deletion lock.' >&2
             exit 1
-          } || true
+          fi
 
           grep -Fq "require_once CFWP_PLUGIN_DIR . 'includes/class-campaign-workflow-policy.php';" "$bootstrap"
           grep -Fq "Campaign_Workflow_Policy::register();" "$plugin"
