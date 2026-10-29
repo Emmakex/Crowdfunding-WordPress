@@ -1,0 +1,54 @@
+name: Campaign Moderation Operations
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  moderation-operations-contract:
+    name: Moderation operations authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify admin UI remains a thin client of Core decision authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          ui='includes/class-campaign-moderation-admin.php'
+          plugin='includes/class-plugin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq "add_submenu_page(" "$ui"
+          grep -Fq "'moderate_cfwp_campaigns'" "$ui"
+          grep -Fq "add_action( 'admin_post_' . self::ACTION" "$ui"
+          grep -Fq "wp_verify_nonce" "$ui"
+          grep -Fq "wp_generate_uuid4()" "$ui"
+          grep -Fq "'admin_ui'" "$ui"
+          grep -Fq "'admin-ui:' . \$request_id" "$ui"
+          grep -Fq "\$this->repository->transition(" "$ui"
+          grep -Fq "\$this->repository->list_events( \$campaign_id )" "$ui"
+          grep -Fq "Campaign_Moderation::STATUS_SUBMITTED" "$ui"
+          grep -Fq "Campaign_Moderation::STATUS_IN_REVIEW" "$ui"
+          grep -Fq "Campaign_Moderation::can_decide_transition" "$ui"
+          grep -Fq "Approving a campaign does not publish it." "$ui"
+
+          grep -Fq "require_once CFWP_PLUGIN_DIR . 'includes/class-campaign-moderation-admin.php';" "$bootstrap"
+          grep -Fq 'private Campaign_Moderation_Admin $campaign_moderation_admin;' "$plugin"
+          grep -Fq '$this->campaign_moderation_admin->register();' "$plugin"
+
+          if grep -Eq '\$wpdb|update_post_meta|add_post_meta|delete_post_meta|wp_update_post|wp_publish_post|wp_insert_post' "$ui"; then
+            echo 'Moderation operations UI must not write Core/editorial state directly.' >&2
+            exit 1
+          fi
+          if grep -Eiq 'woocommerce|\bwc_' "$ui"; then
+            echo 'Moderation operations must remain independent from WooCommerce.' >&2
+            exit 1
+          fi
+          if grep -Fq "Campaign_Moderation::STATUS_SUBMITTED =>" "$ui"; then
+            echo 'Admin UI must not offer submitted as a moderator decision target.' >&2
+            exit 1
+          fi
