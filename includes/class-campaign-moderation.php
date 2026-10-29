@@ -95,6 +95,64 @@ final class Campaign_Moderation {
 	}
 
 	/**
+	 * Bootstrap a pre-0.6.0 campaign into moderation without pretending that a
+	 * historical moderator decision was recorded by this plugin.
+	 *
+	 * This compatibility path is intentionally narrower than the normal state
+	 * graph: pending campaigns become submitted and already-published campaigns
+	 * are grandfathered as approved. Draft/private/trash states are rejected.
+	 * Existing moderation metadata is never overwritten.
+	 *
+	 * @return bool|\WP_Error
+	 */
+	public static function bootstrap_legacy_status( int $campaign_id, string $status ): bool|\WP_Error {
+		$campaign_id = absint( $campaign_id );
+		$campaign    = get_post( $campaign_id );
+		if ( ! $campaign instanceof \WP_Post || Campaigns::POST_TYPE !== $campaign->post_type ) {
+			return new \WP_Error( 'cfwp_moderation_campaign_not_found', __( 'The campaign could not be found for moderation.', 'crowdfunding-wordpress' ) );
+		}
+
+		$status = self::sanitize_status( $status );
+		$map    = array(
+			'pending' => self::STATUS_SUBMITTED,
+			'publish' => self::STATUS_APPROVED,
+		);
+		$editorial_status = sanitize_key( (string) $campaign->post_status );
+
+		if ( ! isset( $map[ $editorial_status ] ) || $map[ $editorial_status ] !== $status ) {
+			return new \WP_Error(
+				'cfwp_moderation_legacy_status_mismatch',
+				__( 'The campaign editorial state cannot be mapped to the requested legacy moderation state.', 'crowdfunding-wordpress' )
+			);
+		}
+
+		if ( metadata_exists( 'post', $campaign_id, self::META_STATUS ) ) {
+			$current = self::status_for_campaign( $campaign_id );
+			if ( $status === $current ) {
+				return true;
+			}
+
+			return new \WP_Error(
+				'' === $current ? 'cfwp_moderation_invalid_stored_status' : 'cfwp_moderation_already_initialized',
+				__( 'Existing campaign moderation state will not be overwritten by the legacy backfill.', 'crowdfunding-wordpress' )
+			);
+		}
+
+		$added = add_post_meta( $campaign_id, self::META_STATUS, $status, true );
+		if ( false === $added ) {
+			$current = self::status_for_campaign( $campaign_id );
+			if ( $status === $current ) {
+				return true;
+			}
+
+			return new \WP_Error( 'cfwp_moderation_status_update_failed', __( 'The campaign moderation state could not be initialized safely.', 'crowdfunding-wordpress' ) );
+		}
+
+		do_action( 'cfwp_campaign_moderation_status_changed', $campaign_id, '', $status, 'legacy_backfill' );
+		return true;
+	}
+
+	/**
 	 * Describe the Core moderation state graph without changing WordPress
 	 * editorial post status.
 	 *

@@ -20,13 +20,17 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 Campaigns, campaign moderation, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WordPress `post_status` remains the editorial publication/visibility mechanism and is not the moderation authority. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but moderation, entitlement, availability, fulfillment, reconciliation health, account dashboards, campaign statistics and promoter portfolio statistics remain separate Core authorities.
 
-As of **0.6.0**, the repository includes:
+As of **0.6.1**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - independent Core campaign moderation state with `submitted`, `in_review`, `approved` and `rejected` states;
 - a moderation transition graph that does not publish or otherwise mutate WordPress editorial status;
 - a dedicated `moderate_cfwp_campaigns` authority granted to administrators and explicitly denied to promoters;
 - new frontend campaign submissions initialized as Core `submitted` while remaining WordPress `pending` editorial content;
+- bounded, versioned and idempotent reconciliation for pre-0.6.0 campaigns that still lack moderation metadata;
+- legacy WordPress `pending` campaigns classified as Core `submitted` without changing editorial status;
+- legacy WordPress `publish` campaigns grandfathered as Core `approved` for compatibility, without claiming evidence of a historical moderation decision;
+- explicit protection against backfilling draft/private/trash campaigns or overwriting any existing moderation metadata;
 - promoter registration, submission, editing and dashboard flows;
 - payment-provider-neutral contribution ledger with idempotency;
 - immutable original contribution amounts and refund-safe adjustments;
@@ -67,8 +71,12 @@ As of **0.6.0**, the repository includes:
 - Generic WordPress Core; no CulturalFunding-specific business logic.
 - Campaign moderation state and WordPress editorial `post_status` are separate authorities.
 - Moderation state can describe review/approval/rejection but cannot itself publish, unpublish or change campaign visibility.
-- Absence of `_cfwp_moderation_status` means the campaign has not entered the new Core moderation lifecycle; 0.6.0 deliberately does not infer or backfill legacy campaign moderation from current `post_status`.
 - New frontend submissions remain WordPress `pending` and independently enter Core moderation as `submitted`.
+- The 0.6.1 compatibility backfill examines only pre-existing campaign rows that still have no `_cfwp_moderation_status` metadata.
+- Legacy `pending` maps to `submitted`; legacy `publish` is grandfathered to `approved`. This is a compatibility classification, not evidence that Crowdfunding WordPress historically recorded an approval decision.
+- Draft, private, trash and other editorial states are never inferred into moderation by the compatibility backfill.
+- Existing valid or invalid moderation metadata is never overwritten by the backfill; invalid stored state remains fail-closed for administrator review.
+- Backfill runs in bounded batches, is safe to retry, uses unique meta insertion and records completion only after no eligible legacy campaign remains.
 - Promoters never receive `moderate_cfwp_campaigns`; moderation is a distinct administrative authority from campaign editing, fulfillment and publication.
 - The initial moderation graph is: no moderation state → `submitted`; `submitted` → `in_review`/`approved`/`rejected`; `in_review` → `approved`/`rejected`; `rejected` → `submitted`; `approved` is terminal in this foundation.
 - WooCommerce is the commerce/payment integration layer, not the owner of campaign, moderation, reward, claim, fulfillment or dashboard domain logic.

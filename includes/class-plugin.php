@@ -15,6 +15,7 @@ final class Plugin {
 	private static ?Plugin $instance = null;
 	private Campaigns $campaigns;
 	private Campaign_Admin $campaign_admin;
+	private Campaign_Moderation_Backfill_Reconciler $campaign_moderation_backfill_reconciler;
 	private Shortcodes $shortcodes;
 	private Campaign_Submission $campaign_submission;
 	private Campaign_Editor $campaign_editor;
@@ -39,6 +40,7 @@ final class Plugin {
 	private function __construct() {
 		$this->campaigns                              = new Campaigns();
 		$this->campaign_admin                         = new Campaign_Admin();
+		$this->campaign_moderation_backfill_reconciler = new Campaign_Moderation_Backfill_Reconciler();
 		$this->shortcodes                             = new Shortcodes();
 		$this->campaign_submission                    = new Campaign_Submission();
 		$this->campaign_editor                        = new Campaign_Editor();
@@ -81,6 +83,7 @@ final class Plugin {
 		$this->contribution_checkout->register();
 		$this->reward_fulfillment_lifecycle_bridge->register();
 		$this->reward_fulfillment_backfill_reconciler->register();
+		$this->campaign_moderation_backfill_reconciler->register();
 
 		add_action( 'init', array( Promoters::class, 'maybe_install' ), 1 );
 		add_action( 'init', array( Contributions::class, 'maybe_install' ), 2 );
