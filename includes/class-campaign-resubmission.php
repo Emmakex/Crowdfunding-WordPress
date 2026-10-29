@@ -63,7 +63,7 @@ final class Campaign_Resubmission {
 		}
 
 		$campaign = get_post( $campaign_id );
-		if ( ! self::can_resubmit( $campaign ) ) {
+		if ( ! self::can_access_campaign( $campaign ) ) {
 			self::redirect_error( $redirect_url, 'permission', $campaign_id );
 		}
 
@@ -73,6 +73,10 @@ final class Campaign_Resubmission {
 		}
 
 		if ( Campaign_Moderation::STATUS_REJECTED === $current ) {
+			if ( ! current_user_can( 'edit_post', $campaign->ID ) ) {
+				self::redirect_error( $redirect_url, 'permission', $campaign_id );
+			}
+
 			$result = Campaign_Moderation::mark_submitted( $campaign_id );
 			if ( is_wp_error( $result ) ) {
 				do_action( 'cfwp_campaign_resubmission_error', $result, $campaign_id, get_current_user_id() );
@@ -96,6 +100,10 @@ final class Campaign_Resubmission {
 	}
 
 	private static function can_resubmit( mixed $campaign ): bool {
+		return self::can_access_campaign( $campaign ) && current_user_can( 'edit_post', $campaign->ID );
+	}
+
+	private static function can_access_campaign( mixed $campaign ): bool {
 		if ( ! $campaign instanceof \WP_Post ) {
 			return false;
 		}
@@ -112,7 +120,7 @@ final class Campaign_Resubmission {
 			return false;
 		}
 
-		return current_user_can( 'edit_post', $campaign->ID );
+		return true;
 	}
 
 	private static function redirect_url( int $campaign_id ): string {

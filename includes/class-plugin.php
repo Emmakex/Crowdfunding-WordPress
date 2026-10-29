@@ -86,6 +86,7 @@ final class Plugin {
 		$this->reward_fulfillment_lifecycle_bridge->register();
 		$this->reward_fulfillment_backfill_reconciler->register();
 		$this->campaign_moderation_backfill_reconciler->register();
+		Campaign_Editing_Policy::register();
 
 		add_action( 'init', array( Promoters::class, 'maybe_install' ), 1 );
 		add_action( 'init', array( Contributions::class, 'maybe_install' ), 2 );

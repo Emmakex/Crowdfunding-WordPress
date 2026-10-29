@@ -1,0 +1,66 @@
+name: Campaign Editing Lock
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  campaign-editing-lock-contract:
+    name: Moderation-aware campaign editing lock contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify reviewed campaign snapshots cannot be edited by promoters
+        shell: bash
+        run: |
+          set -euo pipefail
+          policy='includes/class-campaign-editing-policy.php'
+          editor='includes/class-campaign-editor.php'
+          dashboard='includes/class-promoter-dashboard.php'
+          plugin='includes/class-plugin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq "Campaign_Moderation::STATUS_SUBMITTED" "$policy"
+          grep -Fq "Campaign_Moderation::STATUS_IN_REVIEW" "$policy"
+          grep -Fq "Campaign_Moderation::STATUS_APPROVED" "$policy"
+          if grep -Fq "Campaign_Moderation::STATUS_REJECTED" "$policy"; then
+            echo 'Rejected campaigns must remain editable for correction before resubmission.' >&2
+            exit 1
+          fi
+
+          grep -Fq "add_filter( 'map_meta_cap'" "$policy"
+          grep -Fq "'edit_post' !== \$cap" "$policy"
+          grep -Fq "Campaigns::POST_TYPE !== \$campaign->post_type" "$policy"
+          grep -Fq "\$user->has_cap( 'moderate_cfwp_campaigns' )" "$policy"
+          grep -Fq "return array( 'do_not_allow' );" "$policy"
+
+          grep -Fq "Campaign_Editing_Policy::is_locked( \$campaign_id )" "$editor"
+          grep -Fq "Campaign_Editing_Policy::is_locked( \$campaign->ID )" "$editor"
+          grep -Fq "'moderation_locked'" "$editor"
+          grep -Fq "Campaign_Editing_Policy::is_locked( \$campaign->ID )" "$dashboard"
+          grep -Fq "! \$editing_locked" "$dashboard"
+          grep -Fq "Campaign editing is locked" "$dashboard"
+
+          grep -Fq "require_once CFWP_PLUGIN_DIR . 'includes/class-campaign-editing-policy.php';" "$bootstrap"
+          grep -Fq "Campaign_Editing_Policy::register();" "$plugin"
+          grep -Fq "Version:           0.6.5" "$bootstrap"
+          grep -Fq "Stable tag: 0.6.5" readme.txt
+
+          lock_line="$(grep -n -m1 "Campaign_Editing_Policy::is_locked( \$campaign_id )" "$editor" | cut -d: -f1)"
+          write_line="$(grep -n -m1 "wp_update_post(" "$editor" | cut -d: -f1)"
+          test -n "$lock_line"
+          test -n "$write_line"
+          test "$lock_line" -lt "$write_line"
+
+          if grep -Eq 'update_post_meta|add_post_meta|delete_post_meta|wp_update_post|wp_publish_post' "$policy"; then
+            echo 'Editing policy must authorize only; it must not mutate campaign or moderation state.' >&2
+            exit 1
+          fi
+          if grep -Eiq 'woocommerce|\bwc_' "$policy"; then
+            echo 'Campaign editing policy must remain independent from WooCommerce.' >&2
+            exit 1
+          fi

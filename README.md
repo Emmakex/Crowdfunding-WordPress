@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → independent Core moderation state + immutable moderator decisions → moderation operations UI / promoter resubmission → WordPress editorial publication → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit/health → account/campaign/portfolio dashboards`
+`Campaign → independent Core moderation state + immutable moderator decisions → moderation operations UI / promoter resubmission → moderation-aware campaign editing lock → WordPress editorial publication → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit/health → account/campaign/portfolio dashboards`
 
 Campaigns, campaign moderation, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WordPress `post_status` remains the editorial publication/visibility mechanism and is not the moderation authority. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but moderation, entitlement, availability, fulfillment, reconciliation health, account dashboards, campaign statistics and promoter portfolio statistics remain separate Core authorities.
 
-As of **0.6.4**, the repository includes:
+As of **0.6.5**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - independent Core campaign moderation state with `submitted`, `in_review`, `approved` and `rejected` states;
@@ -40,6 +40,9 @@ As of **0.6.4**, the repository includes:
 - explicit promoter-owned `rejected → submitted` resubmission for still-pending campaigns;
 - promoter resubmission reauthorization by session, edit capability, ownership, editable post authority, editorial `pending` state and current Core `rejected` state;
 - editorial saving and moderation resubmission kept as separate actions;
+- moderation-aware campaign content locking for non-moderators while Core state is `submitted`, `in_review` or `approved`;
+- rejected campaigns and campaigns not yet entered into moderation remain editable subject to the existing editorial/ownership rules;
+- global `edit_post` capability enforcement so stale frontend forms, REST and other WordPress edit paths cannot bypass the moderation lock;
 - promoter dashboard and editor showing WordPress editorial state separately from Core moderation state;
 - promoter registration, submission, editing and dashboard flows;
 - payment-provider-neutral contribution ledger with idempotency;
@@ -107,6 +110,10 @@ As of **0.6.4**, the repository includes:
 - Resubmission never grants `moderate_cfwp_campaigns`, never publishes/unpublishes, never writes moderation meta directly and never touches WooCommerce.
 - Immutable administrator rejection events remain intact after promoter resubmission; resubmission is not fabricated as an administrator-decision event.
 - Promoter-facing campaign surfaces expose WordPress editorial and Core moderation status separately so `pending + rejected` cannot be mistaken for an active review.
+- Campaign content becomes immutable to non-moderators while Core moderation is `submitted`, `in_review` or `approved`; this protects the reviewed snapshot without changing WordPress `post_status`.
+- The moderation editing lock is enforced through WordPress `edit_post` capability mapping as well as the frontend editor, so REST or stale form submissions cannot bypass it.
+- `rejected` remains editable so the owner can correct content before explicit resubmission; campaigns with no moderation state retain their normal draft/pending editing rules.
+- Users with `moderate_cfwp_campaigns` are exempt from the moderation editing lock and retain separate editorial authority where WordPress grants it.
 - WooCommerce is the commerce/payment integration layer, not the owner of campaign, moderation, reward, claim, fulfillment or dashboard domain logic.
 - Reward definitions are Core records, never WooCommerce products by definition.
 - Reward selection is transport evidence, not a reservation or claim.

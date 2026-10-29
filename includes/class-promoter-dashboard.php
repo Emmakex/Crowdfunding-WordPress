@@ -98,6 +98,7 @@ final class Promoter_Dashboard {
 		$editorial_status = get_post_status_object( $campaign->post_status );
 		$editorial_label  = is_object( $editorial_status ) && isset( $editorial_status->label ) ? (string) $editorial_status->label : $campaign->post_status;
 		$moderation       = Campaign_Moderation::status_for_campaign( $campaign->ID );
+		$editing_locked   = Campaign_Editing_Policy::is_locked( $campaign->ID );
 
 		ob_start();
 		?>
@@ -143,9 +144,9 @@ final class Promoter_Dashboard {
 					<?php endif; ?>
 				</p>
 			<?php else : ?>
-				<?php if ( '' !== $edit_url || '' !== $rewards_url || '' !== $statistics_url ) : ?>
+				<?php if ( ( '' !== $edit_url && ! $editing_locked ) || '' !== $rewards_url || '' !== $statistics_url ) : ?>
 					<p class="cfwp-dashboard-card__actions">
-						<?php if ( '' !== $edit_url ) : ?>
+						<?php if ( '' !== $edit_url && ! $editing_locked ) : ?>
 							<a href="<?php echo esc_url( add_query_arg( 'cfwp_campaign_id', $campaign->ID, $edit_url ) ); ?>"><?php esc_html_e( 'Edit campaign', 'crowdfunding-wordpress' ); ?></a>
 						<?php endif; ?>
 						<?php if ( '' !== $rewards_url ) : ?>
@@ -167,10 +168,10 @@ final class Promoter_Dashboard {
 
 	private function render_moderation_message( string $status ): string {
 		$messages = array(
-			Campaign_Moderation::STATUS_SUBMITTED => __( 'This campaign is awaiting moderation review.', 'crowdfunding-wordpress' ),
-			Campaign_Moderation::STATUS_IN_REVIEW => __( 'This campaign is currently being reviewed.', 'crowdfunding-wordpress' ),
+			Campaign_Moderation::STATUS_SUBMITTED => __( 'This campaign is awaiting moderation review. Campaign editing is locked until the review returns it for changes.', 'crowdfunding-wordpress' ),
+			Campaign_Moderation::STATUS_IN_REVIEW => __( 'This campaign is currently being reviewed. Campaign editing is locked while the review is active.', 'crowdfunding-wordpress' ),
 			Campaign_Moderation::STATUS_REJECTED  => __( 'This campaign was rejected. Edit the campaign and explicitly resubmit it when it is ready for another review.', 'crowdfunding-wordpress' ),
-			Campaign_Moderation::STATUS_APPROVED  => __( 'This campaign is approved in Core moderation and remains subject to the separate WordPress editorial publication state.', 'crowdfunding-wordpress' ),
+			Campaign_Moderation::STATUS_APPROVED  => __( 'This campaign is approved in Core moderation. Campaign editing is locked; WordPress publication remains a separate editorial action.', 'crowdfunding-wordpress' ),
 		);
 
 		if ( ! isset( $messages[ $status ] ) ) {

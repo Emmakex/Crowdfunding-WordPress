@@ -55,6 +55,14 @@ final class Campaign_Editor {
 		}
 
 		$campaign = get_post( $campaign_id );
+		if ( ! $this->is_owned_campaign( $campaign ) ) {
+			return '<p class="cfwp-notice cfwp-notice--error">' . esc_html__( 'This campaign cannot be edited from your promoter account.', 'crowdfunding-wordpress' ) . '</p>';
+		}
+
+		if ( Campaign_Editing_Policy::is_locked( $campaign_id ) ) {
+			return '<p class="cfwp-notice">' . esc_html__( 'Campaign editing is locked while this moderation snapshot is submitted, in review or approved. If changes are required, contact the site administrator.', 'crowdfunding-wordpress' ) . '</p>';
+		}
+
 		if ( ! $this->can_edit_campaign( $campaign ) ) {
 			return '<p class="cfwp-notice cfwp-notice--error">' . esc_html__( 'This campaign cannot be edited from your promoter account.', 'crowdfunding-wordpress' ) . '</p>';
 		}
@@ -62,9 +70,9 @@ final class Campaign_Editor {
 		$notice = isset( $_GET['cfwp_notice'] ) ? sanitize_key( wp_unslash( $_GET['cfwp_notice'] ) ) : '';
 		$error  = isset( $_GET['cfwp_error'] ) ? sanitize_key( wp_unslash( $_GET['cfwp_error'] ) ) : '';
 
-		$goal_amount      = (float) get_post_meta( $campaign->ID, Campaigns::META_GOAL_AMOUNT, true );
-		$currency         = (string) get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true );
-		$deadline         = (string) get_post_meta( $campaign->ID, Campaigns::META_DEADLINE, true );
+		$goal_amount       = (float) get_post_meta( $campaign->ID, Campaigns::META_GOAL_AMOUNT, true );
+		$currency          = (string) get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true );
+		$deadline          = (string) get_post_meta( $campaign->ID, Campaigns::META_DEADLINE, true );
 		$moderation_status = Campaign_Moderation::status_for_campaign( $campaign->ID );
 		$redirect_url      = get_permalink() ?: home_url( '/' );
 		$redirect_url      = add_query_arg( self::QUERY_CAMPAIGN_ID, $campaign->ID, $redirect_url );
@@ -151,9 +159,9 @@ final class Campaign_Editor {
 	}
 
 	public function handle_update(): void {
-		$campaign_id = isset( $_POST['cfwp_campaign_id'] ) ? absint( wp_unslash( $_POST['cfwp_campaign_id'] ) ) : 0;
+		$campaign_id  = isset( $_POST['cfwp_campaign_id'] ) ? absint( wp_unslash( $_POST['cfwp_campaign_id'] ) ) : 0;
 		$redirect_url = $this->redirect_url( $campaign_id );
-		$nonce = isset( $_POST[ self::NONCE_NAME ] ) ? sanitize_text_field( wp_unslash( $_POST[ self::NONCE_NAME ] ) ) : '';
+		$nonce        = isset( $_POST[ self::NONCE_NAME ] ) ? sanitize_text_field( wp_unslash( $_POST[ self::NONCE_NAME ] ) ) : '';
 
 		if ( 0 === $campaign_id || ! wp_verify_nonce( $nonce, self::ACTION . '_' . $campaign_id ) ) {
 			$this->redirect_error( $redirect_url, 'security', $campaign_id );
@@ -164,6 +172,14 @@ final class Campaign_Editor {
 		}
 
 		$campaign = get_post( $campaign_id );
+		if ( ! $this->is_owned_campaign( $campaign ) ) {
+			$this->redirect_error( $redirect_url, 'permission', $campaign_id );
+		}
+
+		if ( Campaign_Editing_Policy::is_locked( $campaign_id ) ) {
+			$this->redirect_error( $redirect_url, 'moderation_locked', $campaign_id );
+		}
+
 		if ( ! $this->can_edit_campaign( $campaign ) ) {
 			$this->redirect_error( $redirect_url, 'permission', $campaign_id );
 		}
@@ -228,7 +244,7 @@ final class Campaign_Editor {
 		exit;
 	}
 
-	private function can_edit_campaign( mixed $campaign ): bool {
+	private function is_owned_campaign( mixed $campaign ): bool {
 		if ( ! $campaign instanceof \WP_Post ) {
 			return false;
 		}
@@ -241,7 +257,19 @@ final class Campaign_Editor {
 			return false;
 		}
 
+		return true;
+	}
+
+	private function can_edit_campaign( mixed $campaign ): bool {
+		if ( ! $this->is_owned_campaign( $campaign ) ) {
+			return false;
+		}
+
 		if ( ! in_array( $campaign->post_status, self::EDITABLE_STATUSES, true ) ) {
+			return false;
+		}
+
+		if ( Campaign_Editing_Policy::is_locked( $campaign->ID ) ) {
 			return false;
 		}
 
@@ -273,16 +301,17 @@ final class Campaign_Editor {
 
 	private function error_message( string $error ): string {
 		$messages = array(
-			'security'   => __( 'The campaign request could not be verified. Please try again.', 'crowdfunding-wordpress' ),
-			'permission' => __( 'This campaign cannot be edited or resubmitted from your promoter account.', 'crowdfunding-wordpress' ),
-			'title'      => __( 'Add a campaign title before saving.', 'crowdfunding-wordpress' ),
-			'content'    => __( 'Add the campaign story before saving.', 'crowdfunding-wordpress' ),
-			'goal'       => __( 'Enter a funding goal greater than zero.', 'crowdfunding-wordpress' ),
-			'currency'   => __( 'Enter a valid three-letter ISO currency code.', 'crowdfunding-wordpress' ),
-			'deadline'   => __( 'Enter a valid campaign deadline that is not in the past.', 'crowdfunding-wordpress' ),
-			'save'       => __( 'The campaign changes could not be saved. Please try again.', 'crowdfunding-wordpress' ),
-			'state'      => __( 'Only a currently rejected campaign can be resubmitted for review.', 'crowdfunding-wordpress' ),
-			'moderation' => __( 'The campaign could not re-enter the moderation workflow. Please contact the site administrator.', 'crowdfunding-wordpress' ),
+			'security'          => __( 'The campaign request could not be verified. Please try again.', 'crowdfunding-wordpress' ),
+			'permission'        => __( 'This campaign cannot be edited or resubmitted from your promoter account.', 'crowdfunding-wordpress' ),
+			'moderation_locked' => __( 'Campaign editing is locked while the current moderation snapshot is submitted, in review or approved.', 'crowdfunding-wordpress' ),
+			'title'             => __( 'Add a campaign title before saving.', 'crowdfunding-wordpress' ),
+			'content'           => __( 'Add the campaign story before saving.', 'crowdfunding-wordpress' ),
+			'goal'              => __( 'Enter a funding goal greater than zero.', 'crowdfunding-wordpress' ),
+			'currency'          => __( 'Enter a valid three-letter ISO currency code.', 'crowdfunding-wordpress' ),
+			'deadline'          => __( 'Enter a valid campaign deadline that is not in the past.', 'crowdfunding-wordpress' ),
+			'save'              => __( 'The campaign changes could not be saved. Please try again.', 'crowdfunding-wordpress' ),
+			'state'             => __( 'Only a currently rejected campaign can be resubmitted for review.', 'crowdfunding-wordpress' ),
+			'moderation'        => __( 'The campaign could not re-enter the moderation workflow. Please contact the site administrator.', 'crowdfunding-wordpress' ),
 		);
 
 		return $messages[ $error ] ?? __( 'The campaign could not be updated.', 'crowdfunding-wordpress' );
