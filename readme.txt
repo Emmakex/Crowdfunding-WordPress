@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.5.3
+Stable tag: 0.5.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,8 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Trend net values use current confirmed/refund-adjusted Core facts attributed to contribution creation periods.
 * Aggregate campaign fulfillment counts by pending, processing, fulfilled and cancelled Core state.
 * Pending-delivery workload and completion rate derived exclusively from Core fulfillment records.
+* Read-only fulfillment reconciliation health diagnostics scoped to authorized campaigns.
+* Aggregate lifecycle-drift and post-fulfillment entitlement-reversal counts without supporter rows or repair actions.
 * Generic versioned rewards domain linked to campaigns.
 * Authenticated frontend reward management and public reward cards.
 * Versioned reward-claims ledger with active/reversed states and source/reference idempotency.
@@ -70,6 +72,7 @@ The Core remains independent from any single crowdfunding platform, payment gate
 15. Add `[crowdfunding_fulfillment_audit]` to the same page or another authenticated page when immutable fulfillment history should be visible.
 16. Publish `[crowdfunding_contribution_dashboard]` on an authenticated account page so signed-in users can review their own account-linked contributions.
 17. Publish `[crowdfunding_campaign_statistics]` on an authenticated promoter page to show aggregate Core statistics, fulfillment workload and contribution trends for one authorized campaign.
+18. Add `[crowdfunding_fulfillment_health]` to an authenticated promoter/admin page when aggregate entitlement-versus-fulfillment reconciliation health should be monitored.
 
 == Contributions and adjustments ==
 
@@ -106,6 +109,10 @@ Each trend bucket shows contributions created in that period, how many of those 
 Version 0.5.3 adds aggregate reward-fulfillment statistics to the same authorized campaign surface. Counts come only from `cfwp_reward_fulfillments`, joined through reward claim and reward ownership to the campaign; WooCommerce order status is never used as fulfillment authority.
 
 The surface shows `pending`, `processing`, `fulfilled` and `cancelled` counts. Pending delivery is `pending + processing`. The completion rate is `fulfilled / (pending + processing + fulfilled)` and deliberately excludes `cancelled` fulfillment from the denominator because cancelled entitlement no longer represents active delivery workload. These metrics are read-only and do not affect entitlement, reward availability or fulfillment lifecycle state.
+
+Version 0.5.4 adds `[crowdfunding_fulfillment_health]`, a separate read-only aggregate diagnostic surface using the same campaign-owner/admin authority boundary. It compares current Core claim status with current Core fulfillment state and does not repair records automatically.
+
+Health counts four disjoint conditions: active claims with no fulfillment, active claims whose fulfillment remains cancelled, reversed claims whose fulfillment is still pending/processing, and reversed claims whose fulfillment was already fulfilled. The first three are lifecycle drift; the last is a manual-review exception because fulfilled delivery is terminal and must not be undone automatically. No claim IDs, fulfillment IDs or supporter PII are returned.
 
 == Rewards ==
 
@@ -210,6 +217,9 @@ Displays the authenticated current user's account-linked contributions, net refu
 = [crowdfunding_campaign_statistics] =
 Displays aggregate contribution, reward-entitlement and fulfillment statistics plus bounded day/week/month contribution trends for one authorized campaign. Optional `id` selects the campaign; otherwise it uses `cfwp_campaign_id`. Promoters can view only owned campaigns and no supporter-level rows are returned.
 
+= [crowdfunding_fulfillment_health] =
+Displays aggregate read-only entitlement-versus-fulfillment reconciliation health for one authorized campaign. Optional `id` selects the campaign; otherwise it uses `cfwp_campaign_id`. It reports lifecycle drift and terminal post-delivery reversal exceptions without exposing supporter or record-level identities.
+
 = [crowdfunding_promoter_register] =
 Displays promoter registration when WordPress user registration is enabled.
 
@@ -257,6 +267,14 @@ No. Version 0.5.2 groups contributions by their creation period and shows their 
 
 Version 0.5.3 counts Core fulfillment records only. Pending delivery is `pending + processing`. Completion rate is `fulfilled / (pending + processing + fulfilled)`. Cancelled fulfillment is shown separately but excluded from the denominator because it is no longer active delivery workload.
 
+= What does fulfillment reconciliation health detect? =
+
+Version 0.5.4 checks aggregate Core consistency only. Lifecycle drift includes active claims missing fulfillment, active claims whose fulfillment is still cancelled, and reversed claims whose fulfillment is still pending or processing. A reversed claim whose fulfillment is already fulfilled is shown separately for manual review because delivery cannot be safely undone automatically.
+
+= Does fulfillment health repair records? =
+
+No. `[crowdfunding_fulfillment_health]` is intentionally read-only. It does not call fulfillment transitions, backfill or claim reconciliation and never uses WooCommerce order status as authority.
+
 = Are rewards WooCommerce products? =
 
 No. Reward definitions, claims and fulfillment belong to the generic crowdfunding Core. WooCommerce transports payment/order lifecycle evidence.
@@ -298,6 +316,14 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.5.4 =
+* Added `[crowdfunding_fulfillment_health]` as a campaign-scoped read-only reconciliation-health surface.
+* Added aggregate detection of active claims missing fulfillment and active claims with cancelled fulfillment.
+* Added aggregate detection of reversed claims still pending/processing and reversed claims already fulfilled.
+* Separates lifecycle drift from terminal post-delivery reversal exceptions that require manual review.
+* Reuses campaign owner/admin authorization and returns no supporter, claim or fulfillment identities.
+* Kept health diagnostics SELECT-only, WooCommerce-independent and unable to mutate claims or fulfillment.
 
 = 0.5.3 =
 * Added aggregate campaign fulfillment statistics to `[crowdfunding_campaign_statistics]`.
