@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim`
+`Campaign → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability`
 
-Campaigns, rewards, contributions, financial adjustments and reward claims are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but the authoritative claim and entitlement state remain Core records.
+Campaigns, rewards, contributions, financial adjustments and reward claims are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but the authoritative claim, entitlement state and finite availability remain Core-derived facts.
 
-As of **0.4.5**, the repository includes:
+As of **0.4.6**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -38,6 +38,8 @@ As of **0.4.5**, the repository includes:
 - automatic reversal when a partial refund drops the net contribution below the reward minimum;
 - safe reactivation after a refund adjustment is reversed, subject to confirmed status, current reward enablement and finite capacity;
 - transactional reactivation under the same reward-row lock used for finite claim creation;
+- public finite reward availability derived from active claims;
+- finite availability shown consistently on public reward cards and in the contribution selector;
 - claim reversal when the corresponding contribution becomes `cancelled` or fully `refunded`;
 - HPOS-safe WooCommerce order and refund adapters;
 - authoritative net confirmed raised amount and campaign progress on public surfaces.
@@ -60,6 +62,8 @@ As of **0.4.5**, the repository includes:
 - Finite-limit claim creation and reactivation both serialize against the reward row before counting active claims.
 - `source + source_reference` remains the external-event idempotency authority for claims.
 - A reward `claim_limit` is configuration; remaining capacity is derived from active claims rather than stored as mutable inventory.
+- Public finite availability is read from `Reward_Claim_Repository::remaining_for_reward()`; no public view or checkout surface stores its own counter.
+- Unlimited rewards expose no numeric availability counter; finite rewards expose only the derived remaining count.
 - If capacity changes between cart validation and payment confirmation, claim creation fails closed and emits a synchronization error; successful payment does not fabricate an entitlement.
 - Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
 - WooCommerce orders and refunds are accessed through CRUD APIs and HPOS-compatible boundaries.
