@@ -167,6 +167,12 @@ final class Campaign_Submission {
 		update_post_meta( $post_id, Campaigns::META_CURRENCY, $currency );
 		update_post_meta( $post_id, Campaigns::META_DEADLINE, $deadline );
 
+		$moderation = Campaign_Moderation::mark_submitted( $post_id );
+		if ( is_wp_error( $moderation ) ) {
+			do_action( 'cfwp_campaign_moderation_initialization_error', $moderation, $post_id, get_current_user_id() );
+			$this->redirect_error( $redirect_url, 'moderation' );
+		}
+
 		do_action( 'cfwp_campaign_submitted', $post_id, get_current_user_id() );
 
 		$redirect_url = remove_query_arg( array( 'cfwp_notice', 'cfwp_error', 'cfwp_campaign_id' ), $redirect_url );
@@ -205,6 +211,7 @@ final class Campaign_Submission {
 			'currency'   => __( 'Enter a valid three-letter ISO currency code.', 'crowdfunding-wordpress' ),
 			'deadline'   => __( 'Enter a valid campaign deadline that is not in the past.', 'crowdfunding-wordpress' ),
 			'save'       => __( 'The campaign could not be saved. Please try again.', 'crowdfunding-wordpress' ),
+			'moderation' => __( 'The campaign was saved but could not enter the moderation workflow. Please contact the site administrator instead of submitting it again.', 'crowdfunding-wordpress' ),
 		);
 
 		return $messages[ $error ] ?? __( 'The campaign could not be submitted.', 'crowdfunding-wordpress' );
