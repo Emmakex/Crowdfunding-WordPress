@@ -71,7 +71,12 @@ final class Campaign_Moderation {
 			return new \WP_Error( 'cfwp_moderation_campaign_not_found', __( 'The campaign could not be found for moderation.', 'crowdfunding-wordpress' ) );
 		}
 
-		$current = self::status_for_campaign( $campaign_id );
+		$stored  = sanitize_key( (string) get_post_meta( $campaign_id, self::META_STATUS, true ) );
+		$current = self::sanitize_status( $stored );
+		if ( '' !== $stored && '' === $current ) {
+			return new \WP_Error( 'cfwp_moderation_invalid_stored_status', __( 'The campaign has an invalid moderation state and requires administrator review.', 'crowdfunding-wordpress' ) );
+		}
+
 		if ( self::STATUS_SUBMITTED === $current ) {
 			return true;
 		}
@@ -108,11 +113,14 @@ final class Campaign_Moderation {
 	}
 
 	public static function can_transition( string $from, string $to ): bool {
-		$from        = self::sanitize_status( $from );
-		$to          = self::sanitize_status( $to );
-		$transitions = self::allowed_transitions();
+		$from = sanitize_key( $from );
+		$to   = sanitize_key( $to );
+		if ( ( '' !== $from && ! in_array( $from, self::statuses(), true ) ) || ! in_array( $to, self::statuses(), true ) ) {
+			return false;
+		}
 
-		return '' !== $to && isset( $transitions[ $from ] ) && in_array( $to, $transitions[ $from ], true );
+		$transitions = self::allowed_transitions();
+		return isset( $transitions[ $from ] ) && in_array( $to, $transitions[ $from ], true );
 	}
 
 	public static function can_edit_status( mixed $allowed, string $meta_key, int $post_id ): bool {
