@@ -12,11 +12,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Notification_Admin {
-	private const PAGE_SLUG     = 'cfwp-notifications';
-	private const ACTION_SAVE   = 'cfwp_notification_settings_save';
-	private const ACTION_RETRY  = 'cfwp_notification_delivery_retry';
-	private const NONCE_SAVE    = 'cfwp_notification_settings_save';
-	private const NONCE_RETRY   = 'cfwp_notification_delivery_retry';
+	private const PAGE_SLUG    = 'cfwp-notifications';
+	private const ACTION_SAVE  = 'cfwp_notification_settings_save';
+	private const ACTION_RETRY = 'cfwp_notification_delivery_retry';
+	private const NONCE_SAVE   = 'cfwp_notification_settings_save';
+	private const NONCE_RETRY  = 'cfwp_notification_delivery_retry';
 
 	private Notification_Delivery_Repository $repository;
 
@@ -53,30 +53,32 @@ final class Notification_Admin {
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE ); ?>" />
 				<?php wp_nonce_field( self::NONCE_SAVE ); ?>
+				<p id="cfwp-email-delivery-help" class="description"><?php esc_html_e( 'When disabled, notification events continue to exist but WordPress email delivery is skipped.', 'crowdfunding-wordpress' ); ?></p>
 				<label>
-					<input type="checkbox" name="email_enabled" value="1" <?php checked( Notification_Settings::email_enabled() ); ?> />
+					<input type="checkbox" name="email_enabled" value="1" aria-describedby="cfwp-email-delivery-help" <?php checked( Notification_Settings::email_enabled() ); ?> />
 					<?php esc_html_e( 'Enable WordPress email notifications', 'crowdfunding-wordpress' ); ?>
 				</label>
 				<?php submit_button( __( 'Save notification settings', 'crowdfunding-wordpress' ) ); ?>
 			</form>
 
 			<h2><?php esc_html_e( 'Recent deliveries', 'crowdfunding-wordpress' ); ?></h2>
-			<p>
-				<a href="<?php echo esc_url( $this->page_url() ); ?>"><?php esc_html_e( 'All', 'crowdfunding-wordpress' ); ?></a> |
-				<a href="<?php echo esc_url( $this->page_url( Notification_Delivery_Repository::STATUS_SENT ) ); ?>"><?php esc_html_e( 'Sent', 'crowdfunding-wordpress' ); ?></a> |
-				<a href="<?php echo esc_url( $this->page_url( Notification_Delivery_Repository::STATUS_FAILED ) ); ?>"><?php esc_html_e( 'Failed', 'crowdfunding-wordpress' ); ?></a>
-			</p>
+			<nav aria-label="<?php esc_attr_e( 'Filter notification deliveries', 'crowdfunding-wordpress' ); ?>">
+				<a href="<?php echo esc_url( $this->page_url() ); ?>"<?php echo '' === $status ? ' aria-current="page"' : ''; ?>><?php esc_html_e( 'All', 'crowdfunding-wordpress' ); ?></a> |
+				<a href="<?php echo esc_url( $this->page_url( Notification_Delivery_Repository::STATUS_SENT ) ); ?>"<?php echo Notification_Delivery_Repository::STATUS_SENT === $status ? ' aria-current="page"' : ''; ?>><?php esc_html_e( 'Sent', 'crowdfunding-wordpress' ); ?></a> |
+				<a href="<?php echo esc_url( $this->page_url( Notification_Delivery_Repository::STATUS_FAILED ) ); ?>"<?php echo Notification_Delivery_Repository::STATUS_FAILED === $status ? ' aria-current="page"' : ''; ?>><?php esc_html_e( 'Failed', 'crowdfunding-wordpress' ); ?></a>
+			</nav>
 			<table class="widefat striped">
+				<caption class="screen-reader-text"><?php esc_html_e( 'Recent notification deliveries and delivery status', 'crowdfunding-wordpress' ); ?></caption>
 				<thead><tr>
-					<th><?php esc_html_e( 'ID', 'crowdfunding-wordpress' ); ?></th>
-					<th><?php esc_html_e( 'Message', 'crowdfunding-wordpress' ); ?></th>
-					<th><?php esc_html_e( 'Channel', 'crowdfunding-wordpress' ); ?></th>
-					<th><?php esc_html_e( 'Recipient', 'crowdfunding-wordpress' ); ?></th>
-					<th><?php esc_html_e( 'Status', 'crowdfunding-wordpress' ); ?></th>
-					<th><?php esc_html_e( 'Attempts', 'crowdfunding-wordpress' ); ?></th>
-					<th><?php esc_html_e( 'Last error', 'crowdfunding-wordpress' ); ?></th>
-					<th><?php esc_html_e( 'Updated', 'crowdfunding-wordpress' ); ?></th>
-					<th><?php esc_html_e( 'Action', 'crowdfunding-wordpress' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'ID', 'crowdfunding-wordpress' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Message', 'crowdfunding-wordpress' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Channel', 'crowdfunding-wordpress' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Recipient', 'crowdfunding-wordpress' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Status', 'crowdfunding-wordpress' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Attempts', 'crowdfunding-wordpress' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Last error', 'crowdfunding-wordpress' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Updated', 'crowdfunding-wordpress' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Action', 'crowdfunding-wordpress' ); ?></th>
 				</tr></thead>
 				<tbody>
 				<?php if ( empty( $rows ) ) : ?>
@@ -130,7 +132,7 @@ final class Notification_Admin {
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_RETRY ); ?>" />
 			<input type="hidden" name="delivery_id" value="<?php echo esc_attr( (string) $id ); ?>" />
 			<?php wp_nonce_field( self::NONCE_RETRY . ':' . $id ); ?>
-			<button class="button" type="submit"><?php esc_html_e( 'Retry', 'crowdfunding-wordpress' ); ?></button>
+			<button class="button" type="submit" aria-label="<?php echo esc_attr( sprintf( __( 'Retry notification delivery #%d', 'crowdfunding-wordpress' ), $id ) ); ?>"><?php esc_html_e( 'Retry', 'crowdfunding-wordpress' ); ?></button>
 		</form>
 		<?php
 	}
@@ -157,7 +159,8 @@ final class Notification_Admin {
 			'retry_failed'   => __( 'Notification retry could not be completed.', 'crowdfunding-wordpress' ),
 		);
 		if ( isset( $messages[ $notice ] ) ) {
-			echo '<div class="notice notice-' . esc_attr( 'retry_failed' === $notice ? 'error' : 'success' ) . ' is-dismissible"><p>' . esc_html( $messages[ $notice ] ) . '</p></div>';
+			$is_error = 'retry_failed' === $notice;
+			echo '<div class="notice notice-' . esc_attr( $is_error ? 'error' : 'success' ) . ' is-dismissible" role="' . esc_attr( $is_error ? 'alert' : 'status' ) . '"><p>' . esc_html( $messages[ $notice ] ) . '</p></div>';
 		}
 	}
 }
