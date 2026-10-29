@@ -15,6 +15,7 @@ final class WooCommerce_Adapter {
 	public const SOURCE = 'woocommerce';
 	public const ITEM_META_CAMPAIGN_ID = '_cfwp_campaign_id';
 	public const ITEM_META_AMOUNT = '_cfwp_contribution_amount';
+	public const ITEM_META_REWARD_ID = '_cfwp_reward_id';
 
 	private Contribution_Repository $contributions;
 
@@ -115,10 +116,10 @@ final class WooCommerce_Adapter {
 	}
 
 	/**
-	 * @param int   $order_id Order ID.
+	 * @param int    $order_id Order ID.
 	 * @param string $from Previous WooCommerce status.
 	 * @param string $to New WooCommerce status.
-	 * @param mixed $order Order object when supplied by WooCommerce.
+	 * @param mixed  $order Order object when supplied by WooCommerce.
 	 */
 	public function handle_order_status_changed( int $order_id, string $from, string $to, mixed $order = null ): void {
 		unset( $from, $to );

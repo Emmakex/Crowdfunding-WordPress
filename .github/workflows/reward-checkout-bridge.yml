@@ -1,0 +1,64 @@
+name: Reward Checkout Bridge
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  reward-checkout-bridge-contract:
+    name: Reward checkout-to-claim authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify selection is validated and claims start only after confirmed contribution sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          checkout='includes/class-contribution-checkout.php'
+          woo='includes/class-woocommerce-adapter.php'
+          bridge='includes/class-woocommerce-reward-adapter.php'
+          plugin='includes/class-plugin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq "private const CART_KEY_REWARD_ID   = 'cfwp_reward_id';" "$checkout"
+          grep -Fq 'name="reward_id"' "$checkout"
+          grep -Fq 'validate_reward_selection' "$checkout"
+          grep -Fq 'remaining_for_reward' "$checkout"
+          grep -Fq "woocommerce_check_cart_items" "$checkout"
+          grep -Fq "woocommerce_store_api_cart_errors" "$checkout"
+          grep -Fq "WooCommerce_Adapter::ITEM_META_REWARD_ID" "$checkout"
+          grep -Fq "public const ITEM_META_REWARD_ID = '_cfwp_reward_id';" "$woo"
+
+          grep -Fq "add_action( 'cfwp_woocommerce_contribution_synced'" "$bridge"
+          grep -Fq "WooCommerce_Adapter::ITEM_META_REWARD_ID" "$bridge"
+          grep -Fq "Contributions::STATUS_CONFIRMED" "$bridge"
+          grep -Fq "\$this->claims->create(" "$bridge"
+          grep -Fq "Contributions::STATUS_CANCELLED" "$bridge"
+          grep -Fq "Contributions::STATUS_REFUNDED" "$bridge"
+          grep -Fq "\$this->claims->reverse(" "$bridge"
+          grep -Fq "order:%d:item:%d:reward:%d" "$bridge"
+          grep -Fq "cfwp_woocommerce_reward_claim_sync_error" "$bridge"
+          grep -Fq "cfwp_woocommerce_reward_claim_reversed" "$bridge"
+
+          grep -Fq "includes/class-woocommerce-reward-adapter.php" "$bootstrap"
+          grep -Fq "WooCommerce_Reward_Adapter" "$plugin"
+          grep -Fq "woocommerce_reward_adapter->register" "$plugin"
+
+          if grep -Eq '\$this->claims->(create|reverse)\(' "$checkout"; then
+            echo 'Checkout selection must not create or reverse Core reward claims directly.'
+            exit 1
+          fi
+
+          if grep -Eq "woocommerce_(checkout_order_created|store_api_checkout_order_created|order_status_changed).*claims->create" "$bridge"; then
+            echo 'Reward claims must bridge from confirmed Core contribution sync, not raw WooCommerce order events.'
+            exit 1
+          fi
+
+          if grep -Ei '\$wpdb|wp_posts|wp_postmeta|shop_order|get_post_meta\([^,]*order' "$bridge"; then
+            echo 'WooCommerce reward bridge must use CRUD objects and Core repositories only.'
+            exit 1
+          fi
