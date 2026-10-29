@@ -569,7 +569,7 @@ No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference 
 * Added `[crowdfunding_fulfillment_audit]` as a campaign-scoped read-only fulfillment timeline.
 * Added immutable event reads to `Reward_Fulfillment_Query`, ordered chronologically by event ID.
 * Timeline shows transition, timestamp, event origin, stable source reference and event ID.
-* Reused the existing `manage_cfwp_fulfillments` owner/admin campaign boundary as fulfillment management but registers no write action.
+* Reused the existing `manage_cfwp_fulfillments` owner/admin authority without adding campaign-edit permissions.
 * Kept audit separate from write actions, repository transitions, WooCommerce and customer/shipping PII.
 
 = 0.4.10 =
