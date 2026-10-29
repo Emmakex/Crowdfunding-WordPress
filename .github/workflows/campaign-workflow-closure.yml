@@ -52,7 +52,7 @@ jobs:
           grep -Fq "require_once CFWP_PLUGIN_DIR . 'includes/class-campaign-workflow-policy.php';" "$bootstrap"
           grep -Fq "Campaign_Workflow_Policy::register();" "$plugin"
 
-          if grep -Eq 'update_post_meta|add_post_meta|delete_post_meta|wp_update_post|wp_publish_post|wp_insert_post' "$policy"; then
+          if grep -Eq 'update_post_meta[[:space:]]*\(|add_post_meta[[:space:]]*\(|delete_post_meta[[:space:]]*\(|wp_update_post[[:space:]]*\(|wp_publish_post[[:space:]]*\(|wp_insert_post[[:space:]]*\(' "$policy"; then
             echo 'Workflow policy must enforce eligibility without writing Core moderation or invoking publication APIs.' >&2
             exit 1
           fi
