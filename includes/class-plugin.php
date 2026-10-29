@@ -18,6 +18,7 @@ final class Plugin {
 	private Campaign_Moderation_Admin $campaign_moderation_admin;
 	private Campaign_Moderation_Backfill_Reconciler $campaign_moderation_backfill_reconciler;
 	private Notification_Admin $notification_admin;
+	private \Kairoseth\CrowdfundingWordPress\Compat\CulturalFunding_Migration_Admin $culturalfunding_migration_admin;
 	private Shortcodes $shortcodes;
 	private Campaign_Submission $campaign_submission;
 	private Campaign_Editor $campaign_editor;
@@ -45,6 +46,7 @@ final class Plugin {
 		$this->campaign_moderation_admin              = new Campaign_Moderation_Admin();
 		$this->campaign_moderation_backfill_reconciler = new Campaign_Moderation_Backfill_Reconciler();
 		$this->notification_admin                     = new Notification_Admin();
+		$this->culturalfunding_migration_admin         = new \Kairoseth\CrowdfundingWordPress\Compat\CulturalFunding_Migration_Admin();
 		$this->shortcodes                             = new Shortcodes();
 		$this->campaign_submission                    = new Campaign_Submission();
 		$this->campaign_editor                        = new Campaign_Editor();
@@ -125,6 +127,7 @@ final class Plugin {
 			$this->campaign_admin->register();
 			$this->campaign_moderation_admin->register();
 			$this->notification_admin->register();
+			$this->culturalfunding_migration_admin->register();
 		}
 	}
 
