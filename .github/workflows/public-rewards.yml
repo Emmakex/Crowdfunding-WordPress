@@ -14,12 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify public rewards expose definitions without invented availability
+      - name: Verify public rewards expose only published enabled definitions and Core-derived availability
         shell: bash
         run: |
           set -euo pipefail
           file='includes/class-reward-display.php'
           repo='includes/class-reward-repository.php'
+          claims='includes/class-reward-claim-repository.php'
           views='includes/class-shortcodes.php'
           checkout='includes/class-contribution-checkout.php'
 
@@ -28,21 +29,22 @@ jobs:
           grep -Fq "'publish' !== \$campaign->post_status" "$file"
           grep -Fq "list_for_campaign( \$campaign_id, true )" "$file"
           grep -Fq "Reward_Repository::normalize_amount" "$file"
-          grep -Fq "\$claim_limit > 0" "$file"
-          grep -Fq "Limited to %d reward" "$file"
+          grep -Fq 'private Reward_Claim_Repository $claims;' "$file"
+          grep -Fq 'remaining_for_reward' "$file"
           grep -Fq "if ( \$enabled_only )" "$repo"
           grep -Fq "AND enabled = %d" "$repo"
           grep -Fq "ORDER BY sort_order ASC, minimum_amount ASC, id ASC" "$repo"
+          grep -Fq 'public function remaining_for_reward' "$claims"
           grep -Fq "render_rewards( \$campaign->ID )" "$views"
           grep -Fq "[crowdfunding_rewards id=\"%d\"]" "$views"
           grep -Fq "enhance_single_campaign_content' ), 30" "$checkout"
 
-          if grep -Ei 'woocommerce|\bwc_|Contribution_Repository|Contribution_Adjustment|Reward_Claim_Repository|cfwp_reward_claims' "$file"; then
-            echo 'Public reward presentation must remain independent from checkout, financial ledgers and claims.'
+          if grep -Ei 'woocommerce|\bwc_|Contribution_Repository|Contribution_Adjustment' "$file"; then
+            echo 'Public reward presentation must remain independent from checkout and financial ledgers.'
             exit 1
           fi
 
-          if grep -Ei '\bremaining\b|\bclaimed\b|\bavailable[[:space:]_-]*count\b|stock_remaining' "$file"; then
-            echo 'Public rewards cannot invent remaining/claimed availability before the claims ledger exists.'
+          if grep -Ei '\$wpdb|stock_remaining|remaining_stock|reward_stock' "$file"; then
+            echo 'Public reward availability must come through the Core claim repository, not direct SQL or mutable stock.'
             exit 1
           fi
