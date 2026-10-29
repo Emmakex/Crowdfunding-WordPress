@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.3.4
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,7 +11,7 @@ Create and manage crowdfunding campaigns directly in WordPress. Built by Kairose
 
 == Description ==
 
-Crowdfunding WordPress provides a generic crowdfunding domain for WordPress with campaigns, promoters, an authoritative contribution ledger, WooCommerce checkout integration, refund-safe accounting and public funding progress.
+Crowdfunding WordPress provides a generic crowdfunding domain for WordPress with campaigns, promoters, contributions, refund-safe accounting, rewards, WooCommerce checkout integration and public funding progress.
 
 The Core remains independent from any single crowdfunding platform, payment gateway or vertical implementation.
 
@@ -26,6 +26,8 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Versioned contribution ledger with source/reference idempotency.
 * Immutable contribution amounts plus a separate versioned adjustment ledger.
 * Refund adjustments with applied/reversed states and source/reference idempotency.
+* Generic versioned rewards domain linked to campaigns.
+* Reward minimum contribution thresholds, optional claim limits, enabled state and explicit ordering.
 * WooCommerce adapter based on CRUD order/item objects with HPOS compatibility.
 * Classic checkout and Store API/Checkout Blocks order synchronization.
 * Frontend contribution form that sends an exact campaign amount into WooCommerce checkout.
@@ -59,13 +61,25 @@ Each contribution record stores only the Core crowdfunding facts: campaign ID, o
 
 The pair `source + source_reference` is unique and acts as an idempotency key. Replaying the same reference with the same immutable contribution facts returns the existing contribution; conflicting facts are rejected.
 
-Version 0.3.4 keeps the original contribution amount immutable. Refunds are represented in `cfwp_contribution_adjustments` as separate records linked to the contribution. Adjustment records have their own idempotent `source + source_reference`, exact decimal amount and `applied` or `reversed` state.
+The original contribution amount remains immutable. Refunds are represented in `cfwp_contribution_adjustments` as separate records linked to the contribution. Adjustment records have their own idempotent `source + source_reference`, exact decimal amount and `applied` or `reversed` state.
 
 An applied refund can never exceed the contribution amount still available to refund. This invariant is checked by the generic adjustment repository before persistence.
 
+== Rewards ==
+
+Version 0.4.0 introduces the generic Core rewards domain without coupling a reward to a WooCommerce product.
+
+Rewards are stored in the versioned `cfwp_rewards` table and belong to exactly one crowdfunding campaign. Each reward has a stable ID, title, description, minimum contribution amount, optional claim limit, enabled state and explicit sort order.
+
+A reward inherits the campaign's currency rather than duplicating a currency field. `claim_limit = 0` means unlimited. The claim limit is only the configured maximum; version 0.4.0 does not yet maintain mutable "remaining stock" because reward availability will be derived from a separate claims ledger in a later 0.4.x cut.
+
+The generic `Reward_Repository` can create rewards, update their mutable presentation/eligibility fields, find them by stable ID and list rewards for one campaign. Campaign ownership cannot be reassigned through reward updates.
+
+Version 0.4.0 intentionally does not expose reward selection in checkout and does not create reward claims. Those responsibilities remain separate from the Core reward definition.
+
 == Funding progress ==
 
-Public progress now uses `Contribution_Adjustment_Repository::net_confirmed_total_for_campaign()`. The net total is the sum of Core `confirmed` contribution amounts minus applied refund adjustments for those contributions.
+Public progress uses `Contribution_Adjustment_Repository::net_confirmed_total_for_campaign()`. The net total is the sum of Core `confirmed` contribution amounts minus applied refund adjustments for those contributions.
 
 The raised amount is never read from campaign metadata, WooCommerce order totals, pending payment data or a cached editable field. Campaign cards use a compact progress block, while campaign detail output and native campaign permalinks use the full block. `[crowdfunding_progress]` can render the same authority independently.
 
@@ -73,15 +87,11 @@ The textual percentage may exceed 100% when a campaign raises more than its goal
 
 = WooCommerce refunds =
 
-Version 0.3.4 listens to WooCommerce refund lifecycle events through CRUD objects.
-
-When a refund contains line items, WooCommerce keeps `_refunded_item_id` on each refund line. Crowdfunding WordPress follows that reference back to the original marked crowdfunding order item, finds the original Core contribution and records a refund adjustment using `refund:{refund_id}:item:{original_item_id}` as the stable source reference.
+WooCommerce refund lifecycle events are consumed through CRUD objects. When a refund contains line items, Crowdfunding WordPress follows `_refunded_item_id` back to the original marked crowdfunding order item and records an idempotent refund adjustment.
 
 A partial refund without line-item attribution is not guessed or spread proportionally across crowdfunding lines. If it cannot be attributed safely, the plugin emits `cfwp_woocommerce_refund_sync_error` and leaves the Core accounting unchanged.
 
-A fully refunded WooCommerce order is unambiguous. If WooCommerce provides no refund line attribution for that full refund, the plugin applies the remaining refundable amount to each marked crowdfunding contribution in the order.
-
-When a WooCommerce refund is deleted, matching adjustments are not deleted from the crowdfunding ledger. They move from `applied` to `reversed`, preserving audit history while restoring the net campaign total when the contribution remains confirmed.
+A fully refunded WooCommerce order is unambiguous. The plugin applies any remaining refundable balance to each marked crowdfunding contribution in the order. When a WooCommerce refund is deleted, matching adjustments move from `applied` to `reversed` instead of being deleted.
 
 == WooCommerce checkout ==
 
@@ -139,19 +149,27 @@ Displays the current user's draft, pending and published campaigns. Optional `pe
 
 Confirmed Core contributions minus applied refund adjustments. Pending and cancelled contributions do not count; fully refunded contributions are excluded by their Core status.
 
+= Are rewards WooCommerce products? =
+
+No. Reward definitions belong to the generic crowdfunding Core. WooCommerce remains the checkout/payment layer. A later 0.4.x cut will define how a selected reward is carried through checkout and claimed.
+
+= Does a reward claim limit mean remaining stock is already tracked? =
+
+No. `claim_limit` is the configured maximum and zero means unlimited. Actual claimed/remaining availability will be derived from a dedicated claims ledger rather than a mutable counter on the reward.
+
+= Can an existing reward be moved to another campaign? =
+
+Not through the reward repository update contract. A reward's campaign ownership is treated as an identity fact after creation.
+
 = Does a partial refund overwrite the original contribution amount? =
 
-No. The contribution amount remains immutable. Refunds are independent adjustment records so the original transaction and every adjustment remain auditable.
+No. Refunds are independent adjustment records so the original transaction and every adjustment remain auditable.
 
 = What happens if a partial WooCommerce refund has no line-item attribution? =
 
 Crowdfunding WordPress fails closed. It does not guess which contribution should be reduced. An integration can observe `cfwp_woocommerce_refund_sync_error` and resolve the ambiguity explicitly.
 
-= What happens when a refund is deleted in WooCommerce? =
-
-Its crowdfunding adjustments are marked `reversed`; they are not erased. This preserves audit history.
-
-= Does version 0.3.4 process payments? =
+= Does this plugin process payments? =
 
 Crowdfunding WordPress creates the contribution cart line and sends the supporter to WooCommerce checkout. Payment and payment-provider refunds remain the responsibility of WooCommerce and the installed gateway.
 
@@ -164,6 +182,16 @@ Yes. WooCommerce order/refund integration uses WooCommerce CRUD objects rather t
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.4.0 =
+* Added the versioned generic `cfwp_rewards` domain table.
+* Added stable reward IDs linked to exactly one crowdfunding campaign.
+* Added reward title, description, minimum contribution threshold, optional claim limit, enabled state and explicit ordering.
+* Added `Reward_Repository` create, update, find and campaign-list contracts.
+* Reward campaign ownership is immutable through updates.
+* `claim_limit = 0` means unlimited; no mutable remaining-stock field is introduced.
+* Kept reward definitions independent from WooCommerce, contribution orders and refund accounting.
+* Reward selection, claims and fulfillment remain separate 0.4.x cuts.
 
 = 0.3.4 =
 * Added a versioned immutable contribution-adjustment ledger.

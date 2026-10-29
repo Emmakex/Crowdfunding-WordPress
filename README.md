@@ -4,7 +4,7 @@ Open-source crowdfunding plugin for WordPress, built by Kairoseth.
 
 ## Product direction
 
-Crowdfunding WordPress is a generic product for creating and managing crowdfunding campaigns, promoters and contributions inside WordPress. The Core remains independent from any single client, vertical, brand, grant programme, payment gateway or reference implementation.
+Crowdfunding WordPress is a generic product for creating and managing crowdfunding campaigns, promoters, contributions and rewards inside WordPress. The Core remains independent from any single client, vertical, brand, grant programme, payment gateway or reference implementation.
 
 CulturalFunding is a reference implementation and a source of validated product requirements. It is **not** an architectural authority for this repository.
 
@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → contribution amount → WooCommerce cart/checkout → payment gateway → WooCommerce order → contribution adapter → immutable Core contribution → refund adjustments → net confirmed public progress`
+`Campaign → reward definitions + contribution amount → WooCommerce cart/checkout → payment gateway → WooCommerce order → contribution adapter → immutable Core contribution → refund adjustments → net confirmed public progress`
 
-The Core owns campaign, contribution and adjustment meaning. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Public funding progress reads the Core accounting model rather than WooCommerce order totals.
+Campaigns, rewards, contributions and financial adjustments are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Reward definitions are not WooCommerce products, and public funding progress reads the Core accounting model rather than WooCommerce totals.
 
-As of **0.3.4**, the repository includes:
+As of **0.4.0**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -28,6 +28,9 @@ As of **0.3.4**, the repository includes:
 - immutable original contribution amounts;
 - separate generic adjustment ledger for refund accounting;
 - applied/reversed adjustment states with exact source/reference idempotency;
+- generic versioned rewards domain linked to campaigns;
+- stable reward IDs, minimum contribution thresholds, optional claim limits, enabled state and ordering;
+- generic reward create/update/find/list repository contracts;
 - HPOS-safe WooCommerce order and refund adapters;
 - classic checkout and Store API/Checkout Blocks synchronization;
 - frontend contribution form and exact-amount cart line creation;
@@ -42,8 +45,11 @@ As of **0.3.4**, the repository includes:
 ## Architecture principles
 
 - Generic WordPress Core; no CulturalFunding-specific business logic.
-- WooCommerce is the commerce/payment integration layer, not the owner of campaign domain logic.
-- Campaigns, promoters, contributions, adjustments, rewards, moderation and reporting are separate responsibilities.
+- WooCommerce is the commerce/payment integration layer, not the owner of campaign or reward domain logic.
+- Campaigns, promoters, contributions, adjustments, rewards, claims, moderation and reporting are separate responsibilities.
+- Reward definitions are Core records, never WooCommerce products by definition.
+- Reward campaign ownership is stable after creation.
+- A reward `claim_limit` is a configured maximum; actual availability will be derived from claims rather than a mutable remaining-stock counter.
 - Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
 - WooCommerce orders and refunds are accessed through CRUD APIs and HPOS-compatible boundaries.
 - Contribution checkout never writes the Core ledger directly; order lifecycle synchronization is the authority bridge.
@@ -60,8 +66,8 @@ As of **0.3.4**, the repository includes:
 
 - **0.1.x** Foundation and campaign domain — complete.
 - **0.2.x** Promoters and frontend campaign workflow — complete.
-- **0.3.x** WooCommerce contribution flow, refund integrity and authoritative funding progress — in progress.
-- **0.4.x** Rewards.
+- **0.3.x** WooCommerce contribution flow, refund integrity and authoritative funding progress — complete.
+- **0.4.x** Rewards — in progress.
 - **0.5.x** Contribution dashboards and campaign statistics.
 - **0.6.x** Moderation and campaign workflow expansion.
 - **0.7.x** Notifications and reporting.
