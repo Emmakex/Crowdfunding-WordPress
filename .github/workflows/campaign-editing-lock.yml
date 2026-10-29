@@ -47,8 +47,6 @@ jobs:
 
           grep -Fq "require_once CFWP_PLUGIN_DIR . 'includes/class-campaign-editing-policy.php';" "$bootstrap"
           grep -Fq "Campaign_Editing_Policy::register();" "$plugin"
-          grep -Fq "Version:           0.6.5" "$bootstrap"
-          grep -Fq "Stable tag: 0.6.5" readme.txt
 
           lock_line="$(grep -n -m1 "Campaign_Editing_Policy::is_locked( \$campaign_id )" "$editor" | cut -d: -f1)"
           write_line="$(grep -n -m1 "wp_update_post(" "$editor" | cut -d: -f1)"
