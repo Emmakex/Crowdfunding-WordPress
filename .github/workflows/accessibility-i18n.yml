@@ -1,0 +1,57 @@
+name: Accessibility and i18n
+
+on:
+  pull_request:
+    paths:
+      - 'includes/**.php'
+      - 'assets/css/**'
+      - 'crowdfunding-wordpress.php'
+      - 'readme.txt'
+      - '.github/workflows/accessibility-i18n.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  accessibility-i18n-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify accessibility and translation contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          submission='includes/class-campaign-submission.php'
+          notifications='includes/class-notification-admin.php'
+          progress='includes/class-campaign-progress.php'
+          css='assets/css/public.css'
+
+          grep -Fq 'role="alert"' "$submission"
+          grep -Fq 'role="status"' "$submission"
+          grep -Fq 'aria-live="polite"' "$submission"
+          grep -Fq 'aria-live="assertive"' "$submission"
+          grep -Fq 'aria-describedby="cfwp-submission-required-help"' "$submission"
+          grep -Fq 'aria-describedby="cfwp-currency-help"' "$submission"
+          grep -Fq 'inputmode="decimal"' "$submission"
+
+          grep -Fq '<nav aria-label=' "$notifications"
+          grep -Fq 'aria-current="page"' "$notifications"
+          grep -Fq '<caption class="screen-reader-text">' "$notifications"
+          grep -Fq 'scope="col"' "$notifications"
+          grep -Fq 'aria-describedby="cfwp-email-delivery-help"' "$notifications"
+          grep -Fq "role=\"' . esc_attr( \$is_error ? 'alert' : 'status' )" "$notifications"
+
+          grep -Fq 'role="progressbar"' "$progress"
+          grep -Fq 'aria-valuenow=' "$progress"
+          grep -Fq 'aria-valuetext=' "$progress"
+          grep -Fq ':focus-visible' "$css"
+          grep -Fq 'outline-offset:' "$css"
+
+          if grep -RIn --include='*.php' -E '__\([^,]+\)|_e\([^,]+\)|esc_html__\([^,]+\)|esc_html_e\([^,]+\)|esc_attr__\([^,]+\)|esc_attr_e\([^,]+\)' includes | grep -v "'crowdfunding-wordpress'"; then
+            echo 'Translation helpers must keep the crowdfunding-wordpress text domain.' >&2
+            exit 1
+          fi
+
+          php -l "$submission"
+          php -l "$notifications"
+          php -l "$progress"

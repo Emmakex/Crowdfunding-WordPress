@@ -28,7 +28,7 @@ final class Campaign_Submission {
 		if ( ! is_user_logged_in() ) {
 			$return_url = get_permalink() ?: home_url( '/' );
 			return sprintf(
-				'<p class="cfwp-notice">%1$s <a href="%2$s">%3$s</a></p>',
+				'<p class="cfwp-notice" role="status">%1$s <a href="%2$s">%3$s</a></p>',
 				esc_html__( 'You must sign in before submitting a campaign.', 'crowdfunding-wordpress' ),
 				esc_url( wp_login_url( $return_url ) ),
 				esc_html__( 'Sign in', 'crowdfunding-wordpress' )
@@ -36,7 +36,7 @@ final class Campaign_Submission {
 		}
 
 		if ( ! current_user_can( 'edit_cfwp_campaigns' ) ) {
-			return '<p class="cfwp-notice cfwp-notice--error">' . esc_html__( 'Your account does not have permission to submit crowdfunding campaigns.', 'crowdfunding-wordpress' ) . '</p>';
+			return '<p class="cfwp-notice cfwp-notice--error" role="alert">' . esc_html__( 'Your account does not have permission to submit crowdfunding campaigns.', 'crowdfunding-wordpress' ) . '</p>';
 		}
 
 		$notice = isset( $_GET['cfwp_notice'] ) ? sanitize_key( wp_unslash( $_GET['cfwp_notice'] ) ) : '';
@@ -46,7 +46,7 @@ final class Campaign_Submission {
 
 		if ( 'submitted' === $notice ) {
 			?>
-			<p class="cfwp-notice cfwp-notice--success">
+			<p class="cfwp-notice cfwp-notice--success" role="status" aria-live="polite">
 				<?php esc_html_e( 'Your campaign has been submitted for review.', 'crowdfunding-wordpress' ); ?>
 			</p>
 			<?php
@@ -54,7 +54,7 @@ final class Campaign_Submission {
 
 		if ( '' !== $error ) {
 			?>
-			<p class="cfwp-notice cfwp-notice--error">
+			<p class="cfwp-notice cfwp-notice--error" role="alert" aria-live="assertive">
 				<?php echo esc_html( $this->error_message( $error ) ); ?>
 			</p>
 			<?php
@@ -62,14 +62,15 @@ final class Campaign_Submission {
 
 		$redirect_url = get_permalink() ?: home_url( '/' );
 		?>
-		<form class="cfwp-submission-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<form class="cfwp-submission-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" aria-describedby="cfwp-submission-required-help">
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION ); ?>" />
 			<input type="hidden" name="cfwp_redirect_to" value="<?php echo esc_url( $redirect_url ); ?>" />
 			<?php wp_nonce_field( self::ACTION, self::NONCE_NAME ); ?>
+			<p id="cfwp-submission-required-help" class="cfwp-field-help"><?php esc_html_e( 'Fields marked as required must be completed before the campaign can be submitted for review.', 'crowdfunding-wordpress' ); ?></p>
 
 			<p class="cfwp-field">
 				<label for="cfwp-title"><strong><?php esc_html_e( 'Campaign title', 'crowdfunding-wordpress' ); ?></strong></label>
-				<input id="cfwp-title" name="cfwp_title" type="text" maxlength="200" required />
+				<input id="cfwp-title" name="cfwp_title" type="text" maxlength="200" required aria-required="true" />
 			</p>
 
 			<p class="cfwp-field">
@@ -79,23 +80,24 @@ final class Campaign_Submission {
 
 			<p class="cfwp-field">
 				<label for="cfwp-content"><strong><?php esc_html_e( 'Campaign story', 'crowdfunding-wordpress' ); ?></strong></label>
-				<textarea id="cfwp-content" name="cfwp_content" rows="10" required></textarea>
+				<textarea id="cfwp-content" name="cfwp_content" rows="10" required aria-required="true"></textarea>
 			</p>
 
 			<div class="cfwp-submission-form__funding">
 				<p class="cfwp-field">
 					<label for="cfwp-goal"><strong><?php esc_html_e( 'Funding goal', 'crowdfunding-wordpress' ); ?></strong></label>
-					<input id="cfwp-goal" name="cfwp_goal_amount" type="number" min="0.01" step="0.01" required />
+					<input id="cfwp-goal" name="cfwp_goal_amount" type="number" min="0.01" step="0.01" inputmode="decimal" required aria-required="true" />
 				</p>
 
 				<p class="cfwp-field">
 					<label for="cfwp-currency"><strong><?php esc_html_e( 'Currency', 'crowdfunding-wordpress' ); ?></strong></label>
-					<input id="cfwp-currency" name="cfwp_currency" type="text" maxlength="3" pattern="[A-Za-z]{3}" placeholder="EUR" required />
+					<input id="cfwp-currency" name="cfwp_currency" type="text" maxlength="3" pattern="[A-Za-z]{3}" aria-describedby="cfwp-currency-help" required aria-required="true" />
+					<span id="cfwp-currency-help" class="cfwp-field-help"><?php esc_html_e( 'Enter a three-letter ISO currency code, for example EUR.', 'crowdfunding-wordpress' ); ?></span>
 				</p>
 
 				<p class="cfwp-field">
 					<label for="cfwp-deadline"><strong><?php esc_html_e( 'Deadline', 'crowdfunding-wordpress' ); ?></strong></label>
-					<input id="cfwp-deadline" name="cfwp_deadline" type="date" min="<?php echo esc_attr( current_date( 'Y-m-d' ) ); ?>" required />
+					<input id="cfwp-deadline" name="cfwp_deadline" type="date" min="<?php echo esc_attr( current_date( 'Y-m-d' ) ); ?>" required aria-required="true" />
 				</p>
 			</div>
 

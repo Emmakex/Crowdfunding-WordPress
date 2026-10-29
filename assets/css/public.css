@@ -346,6 +346,17 @@
 	align-items: baseline;
 }
 
+.cfwp-submission-form :focus-visible,
+.cfwp-contribution-form :focus-visible,
+.cfwp-reward-manager :focus-visible,
+.cfwp-dashboard :focus-visible,
+.cfwp-campaign :focus-visible,
+.cfwp-campaign-card :focus-visible,
+.cfwp-rewards :focus-visible {
+	outline: 3px solid currentColor;
+	outline-offset: 3px;
+}
+
 @media (max-width: 34rem) {
 	.cfwp-contribution-form {
 		grid-template-columns: 1fr;
