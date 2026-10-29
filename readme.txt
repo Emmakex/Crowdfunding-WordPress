@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.6.3
+Stable tag: 0.6.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,8 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Native WordPress moderation queue for `submitted` and `in_review` campaigns.
 * Campaign moderation detail with repository-governed decisions and immutable decision history.
 * Nonce, capability and per-form UUID idempotency protection for every administrative moderation request.
+* Rejected campaign owners can edit their still-pending campaign and explicitly resubmit it back to Core `submitted` without moderator authority.
+* Promoter dashboard and editor surface WordPress editorial state separately from Core moderation state.
 * Public campaign catalogue and campaign detail shortcodes.
 * Authoritative net raised amount derived from confirmed contributions minus applied refund adjustments.
 * Frontend promoter registration, campaign submission, editing and personal dashboard.
@@ -91,6 +93,7 @@ The Core remains independent from any single crowdfunding platform, payment gate
 18. Add `[crowdfunding_fulfillment_health]` to an authenticated promoter/admin page when aggregate entitlement-versus-fulfillment reconciliation health should be monitored.
 19. Publish `[crowdfunding_promoter_portfolio]` on an authenticated promoter page for an executive aggregate view across every campaign owned by the current account.
 20. Administrators with `moderate_cfwp_campaigns` can use **Crowdfunding → Moderation** to review submitted/in-review campaigns and record Core decisions.
+21. When an owned campaign is rejected, the promoter can edit it on `[crowdfunding_edit_campaign]` and use the explicit **Resubmit campaign for review** action after saving any required changes.
 
 == Campaign moderation ==
 
@@ -121,6 +124,14 @@ Opening a queue item shows current Core moderation state, separate WordPress edi
 Every decision form is nonce-protected, requires `moderate_cfwp_campaigns`, and carries a fresh UUID. The UI passes `admin_ui` plus that UUID-derived stable reference to `Campaign_Moderation_Repository::transition()`; it never writes moderation meta, event rows or WordPress post status directly. Double submission of the same rendered form therefore resolves through the repository idempotency contract rather than creating a second decision.
 
 Approving in this UI changes only Core moderation state. Publishing/unpublishing remains a separate WordPress editorial action.
+
+Version 0.6.4 adds the promoter-owned rejection and resubmission flow. A rejected campaign remains WordPress `pending`, so its owner can continue to edit it without any new editorial capability. Saving content does not alter the Core rejection state.
+
+The editor shows the current Core moderation state separately and, only for an owned `pending + rejected` campaign, exposes a second nonce-protected **Resubmit campaign for review** form. The resubmission handler rechecks authentication, `edit_cfwp_campaigns`, campaign ownership, `edit_post`, editorial `pending` state and current Core `rejected` state before calling `Campaign_Moderation::mark_submitted()`.
+
+Promoter resubmission never requires or grants `moderate_cfwp_campaigns`, never calls the administrator decision repository and never writes moderation meta or WordPress editorial status directly. Previous immutable administrator rejection events remain intact; the resubmission itself is a promoter lifecycle transition rather than a fabricated moderator-decision event.
+
+The promoter dashboard now labels WordPress editorial status and Core moderation status separately. `submitted`, `in_review`, `rejected` and `approved` therefore produce distinct guidance instead of treating every WordPress `pending` campaign as merely awaiting review.
 
 == Contributions and adjustments ==
 
@@ -198,7 +209,7 @@ A newly created active claim idempotently gets one `pending` fulfillment. Revers
 
 Repeated reversal/reactivation cycles use a fresh event-sequence-based source reference so an old transition cannot masquerade as a later successful transition. `fulfilled` remains terminal: if entitlement is reversed after delivery, the plugin does not automatically undo delivery and instead emits `cfwp_reward_fulfillment_sync_error` for manual review.
 
-Version 0.4.9 adds a bounded historical reconciliation pass for active claims that were created before the fulfillment lifecycle bridge existed. The reconciler selects only active claims with no fulfillment, processes them through the same idempotent `ensure_for_claim()` authority, and records completion only when no missing active claim remains. Failed rows are left untouched for retry and emit `cfwp_reward_fulfillment_backfill_error`.
+Version 0.4.9 adds a bounded historical reconciliation pass for active claims that were created before the fulfillment lifecycle bridge existed. The reconciler selects only active claims with no fulfillment, processes them through the same idempotent `ensure_for_claim()` authority, and records completion only when no missing active claim remains. Failed claims are left untouched for retry and emit `cfwp_reward_fulfillment_backfill_error`.
 
 Backfill runs after the fulfillment schema installer, processes at most 50 claims per request by default (filterable and hard-capped at 200), never mutates claim rows and has no WooCommerce dependency.
 
@@ -244,6 +255,8 @@ The checkout uses a hidden virtual WooCommerce product as a transport line only.
 
 The `cfwp_promoter` role can create and edit its own draft or pending campaigns and manage fulfillment for rewards belonging to campaigns it owns. Promoters cannot moderate or publish campaigns, edit published campaigns or manage campaigns owned by other users.
 
+A promoter whose own `pending` campaign is currently Core `rejected` can save editorial changes and then explicitly resubmit that campaign to `submitted`. This promoter path does not grant `moderate_cfwp_campaigns`, cannot approve/reject campaigns and does not change WordPress publication state.
+
 Administrators retain the dedicated `moderate_cfwp_campaigns` authority as well as publication and cross-campaign fulfillment/statistics supervision.
 
 == Shortcodes ==
@@ -282,7 +295,7 @@ Displays promoter registration when WordPress user registration is enabled.
 Displays the authenticated promoter campaign submission form. New submissions remain WordPress `pending` and independently enter Core moderation as `submitted`.
 
 = [crowdfunding_edit_campaign] =
-Displays the editor for one campaign owned by the current user. Only draft and pending campaigns are editable.
+Displays the editor for one campaign owned by the current user. Only draft and pending campaigns are editable. For an owned `pending + rejected` campaign, the same surface shows current moderation state and a separate explicit resubmission form after editorial changes are saved.
 
 = [crowdfunding_manage_rewards] =
 Displays authenticated reward management for one owned draft/pending campaign.
@@ -294,13 +307,13 @@ Displays authenticated fulfillment operations for one authorized campaign. Promo
 Displays the immutable chronological fulfillment event history for one authorized campaign. Optional `id` selects the campaign; otherwise it uses `cfwp_campaign_id`. The timeline is read-only and exposes event origin, stable source reference and event ID.
 
 = [crowdfunding_promoter_dashboard] =
-Displays the current user's draft, pending and published campaigns. Optional `per_page`, `edit_url`, `rewards_url`, `fulfillment_url` and `statistics_url` attributes.
+Displays the current user's draft, pending and published campaigns with WordPress editorial status and Core moderation status shown separately. Optional `per_page`, `edit_url`, `rewards_url`, `fulfillment_url` and `statistics_url` attributes.
 
 == Frequently Asked Questions ==
 
 = Is campaign moderation the same as WordPress post status? =
 
-No. Core moderation is separate from WordPress editorial state. A campaign can be WordPress `pending` while Core moderation is `submitted` or `in_review`. Moderation does not publish or change visibility by itself.
+No. Core moderation is separate from WordPress editorial state. A campaign can be WordPress `pending` while Core moderation is `submitted`, `in_review`, `approved` or `rejected`. Moderation does not publish or change visibility by itself.
 
 = How are campaigns created before moderation existed handled? =
 
@@ -313,6 +326,14 @@ Yes. From version 0.6.2, administrator transitions to `in_review`, `approved` or
 = Where do administrators moderate campaigns? =
 
 From version 0.6.3, administrators with `moderate_cfwp_campaigns` use **Crowdfunding → Moderation**. The queue contains current `submitted` and `in_review` campaigns, and each campaign detail shows repository-governed actions plus immutable decision history.
+
+= Can a promoter resubmit a rejected campaign? =
+
+Yes. From version 0.6.4, the owner of a WordPress `pending` campaign whose Core moderation state is `rejected` can edit it and then use the explicit resubmission form on `[crowdfunding_edit_campaign]`. The handler reauthorizes ownership and edit capability, then calls the normal `mark_submitted()` Core transition. It never grants moderator authority or changes `post_status`.
+
+= Does resubmitting erase the rejection history? =
+
+No. The immutable administrator decision event that recorded the rejection remains in the moderation ledger. Resubmission changes the current Core state back to `submitted`; it is not recorded as a fake administrator decision.
 
 = Does approving a campaign publish it? =
 
@@ -399,6 +420,16 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.6.4 =
+* Added explicit promoter resubmission for owned WordPress `pending` campaigns whose Core moderation state is `rejected`.
+* Added nonce, authentication, `edit_cfwp_campaigns`, ownership, `edit_post`, editorial-state and current-moderation-state reauthorization before resubmission.
+* Reused `Campaign_Moderation::mark_submitted()` as the only state transition authority for `rejected → submitted`.
+* Kept saving campaign content separate from resubmission so editing never silently changes moderation state.
+* Added separate editorial and Core moderation labels plus state-specific guidance to the promoter dashboard.
+* Added current moderation state and a dedicated resubmission form to the campaign editor.
+* Preserved previous immutable administrator rejection events without fabricating a promoter action as a moderator-decision event.
+* Kept promoter resubmission independent from `moderate_cfwp_campaigns`, administrator decision authority, WordPress publication and WooCommerce.
 
 = 0.6.3 =
 * Added native **Crowdfunding → Moderation** administrator operations UI.

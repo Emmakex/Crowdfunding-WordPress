@@ -102,6 +102,7 @@ final class Plugin {
 		add_action( 'init', array( $this->reward_display, 'register' ) );
 		add_action( 'init', array( $this->shortcodes, 'register' ) );
 		add_action( 'init', array( $this->campaign_submission, 'register' ) );
+		add_action( 'init', array( Campaign_Resubmission::class, 'register' ) );
 		add_action( 'init', array( $this->campaign_editor, 'register' ) );
 		add_action( 'init', array( $this->reward_manager, 'register' ) );
 		add_action( 'init', array( $this->reward_fulfillment_manager, 'register' ) );

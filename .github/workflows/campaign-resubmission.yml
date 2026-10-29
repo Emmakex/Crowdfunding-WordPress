@@ -1,0 +1,67 @@
+name: Campaign Resubmission
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  campaign-resubmission-contract:
+    name: Promoter resubmission authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify rejected campaigns re-enter moderation without gaining moderator authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          resubmit='includes/class-campaign-resubmission.php'
+          editor='includes/class-campaign-editor.php'
+          dashboard='includes/class-promoter-dashboard.php'
+          plugin='includes/class-plugin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq "add_action( 'admin_post_' . self::ACTION" "$resubmit"
+          grep -Fq "wp_verify_nonce" "$resubmit"
+          grep -Fq "current_user_can( 'edit_cfwp_campaigns' )" "$resubmit"
+          grep -Fq "(int) \$campaign->post_author !== get_current_user_id()" "$resubmit"
+          grep -Fq "'pending' !== \$campaign->post_status" "$resubmit"
+          grep -Fq "\$current = Campaign_Moderation::status_for_campaign( \$campaign_id );" "$resubmit"
+          grep -Fq "Campaign_Moderation::STATUS_REJECTED !== \$current && Campaign_Moderation::STATUS_SUBMITTED !== \$current" "$resubmit"
+          grep -Fq "Campaign_Moderation::STATUS_REJECTED === \$current" "$resubmit"
+          grep -Fq "Campaign_Moderation::mark_submitted( \$campaign_id )" "$resubmit"
+          grep -Fq "cfwp_campaign_resubmitted" "$resubmit"
+          grep -Fq "Resubmission changes only the Core moderation state back to Submitted." "$resubmit"
+
+          grep -Fq "Campaign_Resubmission::render_form( \$campaign, \$redirect_url )" "$editor"
+          grep -Fq "'resubmitted' === \$notice" "$editor"
+          grep -Fq "Campaign_Moderation::status_for_campaign( \$campaign->ID )" "$editor"
+          grep -Fq "Campaign_Moderation::status_for_campaign( \$campaign->ID )" "$dashboard"
+          grep -Fq "This campaign was rejected. Edit the campaign and explicitly resubmit it" "$dashboard"
+
+          grep -Fq "require_once CFWP_PLUGIN_DIR . 'includes/class-campaign-resubmission.php';" "$bootstrap"
+          grep -Fq "add_action( 'init', array( Campaign_Resubmission::class, 'register' ) );" "$plugin"
+
+          if grep -Fq "moderate_cfwp_campaigns" "$resubmit"; then
+            echo 'Promoter resubmission must never require or grant moderator authority.' >&2
+            exit 1
+          fi
+          if grep -Eq '\$wpdb|update_post_meta|add_post_meta|delete_post_meta|wp_update_post|wp_publish_post|wp_insert_post' "$resubmit"; then
+            echo 'Resubmission must not write moderation/editorial state directly.' >&2
+            exit 1
+          fi
+          if grep -Fq "Campaign_Moderation_Repository" "$resubmit"; then
+            echo 'Promoter resubmission must use mark_submitted(), not administrator decision authority.' >&2
+            exit 1
+          fi
+          if grep -Fq "Campaign_Moderation::mark_submitted" "$editor"; then
+            echo 'Saving campaign content must remain separate from resubmission.' >&2
+            exit 1
+          fi
+          if grep -Eiq 'woocommerce|\bwc_' "$resubmit"; then
+            echo 'Campaign resubmission must remain independent from WooCommerce.' >&2
+            exit 1
+          fi
