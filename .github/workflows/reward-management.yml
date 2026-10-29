@@ -20,6 +20,7 @@ jobs:
           set -euo pipefail
           file='includes/class-reward-manager.php'
           repo='includes/class-reward-repository.php'
+          dashboard='includes/class-promoter-dashboard.php'
 
           grep -Fq "add_shortcode( 'crowdfunding_manage_rewards'" "$file"
           grep -Fq "add_action( 'admin_post_' . self::ACTION" "$file"
@@ -33,13 +34,15 @@ jobs:
           grep -Fq "'sort_order'" "$file"
           grep -Fq "'claim_limit'" "$file"
           grep -Fq "'enabled' => ! (bool) \$reward['enabled']" "$file"
+          grep -Fq "'rewards_url' => ''" "$dashboard"
+          grep -Fq "Manage rewards" "$dashboard"
 
           if grep -Fq "admin_post_nopriv_" "$file"; then
             echo 'Reward management must remain authenticated-only.'
             exit 1
           fi
 
-          if grep -Ei 'woocommerce|\bwc_|Contribution_Repository|Contribution_Adjustment|Reward_Claim|claim_id|claim_repository|cfwp_reward_claim' "$file"; then
+          if grep -Ei 'woocommerce|\bwc_|Contribution_Repository|Contribution_Adjustment|Reward_Claim_Repository|class-reward-claim|cfwp_reward_claim_id|cfwp_reward_claims' "$file"; then
             echo 'Reward management must not create checkout, contribution, refund or claim authority.'
             exit 1
           fi
