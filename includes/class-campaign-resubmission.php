@@ -67,17 +67,20 @@ final class Campaign_Resubmission {
 			self::redirect_error( $redirect_url, 'permission', $campaign_id );
 		}
 
-		if ( Campaign_Moderation::STATUS_REJECTED !== Campaign_Moderation::status_for_campaign( $campaign_id ) ) {
+		$current = Campaign_Moderation::status_for_campaign( $campaign_id );
+		if ( Campaign_Moderation::STATUS_REJECTED !== $current && Campaign_Moderation::STATUS_SUBMITTED !== $current ) {
 			self::redirect_error( $redirect_url, 'state', $campaign_id );
 		}
 
-		$result = Campaign_Moderation::mark_submitted( $campaign_id );
-		if ( is_wp_error( $result ) ) {
-			do_action( 'cfwp_campaign_resubmission_error', $result, $campaign_id, get_current_user_id() );
-			self::redirect_error( $redirect_url, 'moderation', $campaign_id );
-		}
+		if ( Campaign_Moderation::STATUS_REJECTED === $current ) {
+			$result = Campaign_Moderation::mark_submitted( $campaign_id );
+			if ( is_wp_error( $result ) ) {
+				do_action( 'cfwp_campaign_resubmission_error', $result, $campaign_id, get_current_user_id() );
+				self::redirect_error( $redirect_url, 'moderation', $campaign_id );
+			}
 
-		do_action( 'cfwp_campaign_resubmitted', $campaign_id, get_current_user_id() );
+			do_action( 'cfwp_campaign_resubmitted', $campaign_id, get_current_user_id() );
+		}
 
 		$redirect_url = remove_query_arg( array( 'cfwp_notice', 'cfwp_error' ), $redirect_url );
 		$redirect_url = add_query_arg(
