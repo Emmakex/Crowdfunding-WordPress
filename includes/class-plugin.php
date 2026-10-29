@@ -88,6 +88,7 @@ final class Plugin {
 		$this->campaign_moderation_backfill_reconciler->register();
 		Notification_Events::register();
 		Notification_Recipient_Resolver::register();
+		Notification_Delivery_Intents::register();
 		Campaign_Editing_Policy::register();
 		Campaign_Workflow_Policy::register();
 
