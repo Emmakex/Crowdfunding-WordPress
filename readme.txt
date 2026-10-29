@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.6.4
+Stable tag: 0.6.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -33,6 +33,9 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Campaign moderation detail with repository-governed decisions and immutable decision history.
 * Nonce, capability and per-form UUID idempotency protection for every administrative moderation request.
 * Rejected campaign owners can edit their still-pending campaign and explicitly resubmit it back to Core `submitted` without moderator authority.
+* Moderation-aware campaign content locking prevents non-moderators from editing while Core state is `submitted`, `in_review` or `approved`.
+* The editing lock is enforced through WordPress `edit_post` capability mapping plus frontend render/POST reauthorization, so stale forms and REST/editor paths cannot bypass it.
+* `rejected` campaigns remain editable so their owner can make changes before explicit resubmission.
 * Promoter dashboard and editor surface WordPress editorial state separately from Core moderation state.
 * Public campaign catalogue and campaign detail shortcodes.
 * Authoritative net raised amount derived from confirmed contributions minus applied refund adjustments.
@@ -132,6 +135,10 @@ The editor shows the current Core moderation state separately and, only for an o
 Promoter resubmission never requires or grants `moderate_cfwp_campaigns`, never calls the administrator decision repository and never writes moderation meta or WordPress editorial status directly. Previous immutable administrator rejection events remain intact; the resubmission itself is a promoter lifecycle transition rather than a fabricated moderator-decision event.
 
 The promoter dashboard now labels WordPress editorial status and Core moderation status separately. `submitted`, `in_review`, `rejected` and `approved` therefore produce distinct guidance instead of treating every WordPress `pending` campaign as merely awaiting review.
+
+Version 0.6.5 adds a moderation-aware campaign editing lock. For users without `moderate_cfwp_campaigns`, campaign content is locked while Core moderation is `submitted`, `in_review` or `approved`. `rejected` remains editable so the owner can make corrections before explicitly resubmitting, and campaigns with no moderation state retain their existing draft/pending editing rules.
+
+The lock is enforced through WordPress `map_meta_cap` for `edit_post` and is also rechecked by the frontend editor before rendering or accepting a POST. This protects the reviewed campaign snapshot across frontend, REST and stale-form paths without modifying `post_status`, moderation state or publication authority. Administrators with moderator authority are exempt from this promoter-facing lock and retain their separate WordPress editorial permissions.
 
 == Contributions and adjustments ==
 
@@ -253,9 +260,9 @@ The checkout uses a hidden virtual WooCommerce product as a transport line only.
 
 == Promoters ==
 
-The `cfwp_promoter` role can create and edit its own draft or pending campaigns and manage fulfillment for rewards belonging to campaigns it owns. Promoters cannot moderate or publish campaigns, edit published campaigns or manage campaigns owned by other users.
+The `cfwp_promoter` role can create and edit its own draft or pending campaigns only while Core moderation does not lock the campaign snapshot. Promoters cannot moderate or publish campaigns, edit published campaigns or manage campaigns owned by other users.
 
-A promoter whose own `pending` campaign is currently Core `rejected` can save editorial changes and then explicitly resubmit that campaign to `submitted`. This promoter path does not grant `moderate_cfwp_campaigns`, cannot approve/reject campaigns and does not change WordPress publication state.
+For non-moderators, `submitted`, `in_review` and `approved` campaign content is locked through the normal WordPress `edit_post` capability path. A promoter whose own `pending` campaign is Core `rejected` can still save editorial changes and then explicitly resubmit that campaign to `submitted`. This promoter path does not grant `moderate_cfwp_campaigns`, cannot approve/reject campaigns and does not change WordPress publication state.
 
 Administrators retain the dedicated `moderate_cfwp_campaigns` authority as well as publication and cross-campaign fulfillment/statistics supervision.
 
@@ -295,7 +302,7 @@ Displays promoter registration when WordPress user registration is enabled.
 Displays the authenticated promoter campaign submission form. New submissions remain WordPress `pending` and independently enter Core moderation as `submitted`.
 
 = [crowdfunding_edit_campaign] =
-Displays the editor for one campaign owned by the current user. Only draft and pending campaigns are editable. For an owned `pending + rejected` campaign, the same surface shows current moderation state and a separate explicit resubmission form after editorial changes are saved.
+Displays the editor for one campaign owned by the current user. Draft/pending editorial state is necessary but not sufficient: for non-moderators, Core `submitted`, `in_review` and `approved` are locked. An owned `pending + rejected` campaign remains editable and exposes a separate explicit resubmission form after editorial changes are saved.
 
 = [crowdfunding_manage_rewards] =
 Displays authenticated reward management for one owned draft/pending campaign.
@@ -307,7 +314,7 @@ Displays authenticated fulfillment operations for one authorized campaign. Promo
 Displays the immutable chronological fulfillment event history for one authorized campaign. Optional `id` selects the campaign; otherwise it uses `cfwp_campaign_id`. The timeline is read-only and exposes event origin, stable source reference and event ID.
 
 = [crowdfunding_promoter_dashboard] =
-Displays the current user's draft, pending and published campaigns with WordPress editorial status and Core moderation status shown separately. Optional `per_page`, `edit_url`, `rewards_url`, `fulfillment_url` and `statistics_url` attributes.
+Displays the current user's draft, pending and published campaigns with WordPress editorial status and Core moderation status shown separately. Optional `per_page`, `edit_url`, `rewards_url`, `fulfillment_url` and `statistics_url` attributes. The campaign edit link is hidden while the moderation editing lock is active.
 
 == Frequently Asked Questions ==
 
@@ -330,6 +337,10 @@ From version 0.6.3, administrators with `moderate_cfwp_campaigns` use **Crowdfun
 = Can a promoter resubmit a rejected campaign? =
 
 Yes. From version 0.6.4, the owner of a WordPress `pending` campaign whose Core moderation state is `rejected` can edit it and then use the explicit resubmission form on `[crowdfunding_edit_campaign]`. The handler reauthorizes ownership and edit capability, then calls the normal `mark_submitted()` Core transition. It never grants moderator authority or changes `post_status`.
+
+= When can a promoter edit a campaign that is in moderation? =
+
+From version 0.6.5, non-moderators cannot edit campaign content while Core moderation is `submitted`, `in_review` or `approved`. The reviewed snapshot is protected through WordPress `edit_post` capability mapping and frontend POST reauthorization. `rejected` remains editable so the owner can correct it before explicitly resubmitting. This lock does not publish, unpublish or change moderation state.
 
 = Does resubmitting erase the rejection history? =
 
@@ -420,6 +431,15 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.6.5 =
+* Added a moderation-aware campaign content editing lock for non-moderators while Core state is `submitted`, `in_review` or `approved`.
+* Added global `edit_post` capability enforcement so REST, wp-admin/editor paths and stale frontend forms cannot bypass the lock.
+* Kept `rejected` campaigns editable so owners can correct them before explicit resubmission.
+* Added frontend render and POST lock reauthorization plus a specific locked-state error.
+* Hid the promoter dashboard edit link while the campaign snapshot is locked and added state-specific lock guidance.
+* Kept administrators with `moderate_cfwp_campaigns` exempt from the promoter-facing lock while preserving WordPress editorial capability checks.
+* Kept the lock independent from moderation transitions, WordPress publication, rewards, WooCommerce, contributions and fulfillment.
 
 = 0.6.4 =
 * Added explicit promoter resubmission for owned WordPress `pending` campaigns whose Core moderation state is `rejected`.
