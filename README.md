@@ -16,11 +16,11 @@ CulturalFunding is a reference implementation and a source of validated product 
 
 ## Current architecture
 
-`Campaign → reward definitions + contribution amount → WooCommerce cart/checkout → payment gateway → WooCommerce order → contribution adapter → immutable Core contribution → refund adjustments → net confirmed public progress`
+`Campaign → public reward definitions + contribution amount → WooCommerce cart/checkout → payment gateway → WooCommerce order → contribution adapter → immutable Core contribution → refund adjustments → net confirmed public progress`
 
 Campaigns, rewards, contributions and financial adjustments are Core domain concepts. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Reward definitions are not WooCommerce products, and public funding progress reads the Core accounting model rather than WooCommerce totals.
 
-As of **0.4.1**, the repository includes:
+As of **0.4.2**, the repository includes:
 
 - generic campaign domain and public campaign views;
 - promoter registration, submission, editing and dashboard flows;
@@ -29,7 +29,9 @@ As of **0.4.1**, the repository includes:
 - generic versioned rewards domain linked to campaigns;
 - stable reward IDs, minimum contribution thresholds, optional claim limits, enabled state and ordering;
 - frontend `[crowdfunding_manage_rewards]` management for rewards on the promoter's own draft/pending campaigns;
-- nonce-bound create, update and activate/deactivate operations with campaign ownership revalidation;
+- public `[crowdfunding_rewards]` presentation for enabled rewards on published campaigns;
+- reward cards on campaign detail and native campaign permalinks, ordered by configured order and minimum contribution;
+- public reward presentation intentionally exposes configured limits but no claimed/remaining availability before the claims ledger exists;
 - HPOS-safe WooCommerce order and refund adapters;
 - classic checkout and Store API/Checkout Blocks synchronization;
 - frontend contribution form and exact-amount cart line creation;
@@ -43,7 +45,9 @@ As of **0.4.1**, the repository includes:
 - Reward definitions are Core records, never WooCommerce products by definition.
 - Reward campaign ownership is stable after creation.
 - Frontend reward management is limited to the current user's own draft/pending campaigns and does not create claims.
+- Public reward presentation only exposes enabled definitions on published campaigns.
 - A reward `claim_limit` is a configured maximum; actual availability will be derived from claims rather than a mutable remaining-stock counter.
+- Public reward surfaces must not present claimed or remaining availability until the claims ledger becomes authoritative.
 - Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
 - WooCommerce orders and refunds are accessed through CRUD APIs and HPOS-compatible boundaries.
 - Contribution checkout never writes the Core ledger directly; order lifecycle synchronization is the authority bridge.
