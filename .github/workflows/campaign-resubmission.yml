@@ -36,6 +36,7 @@ jobs:
 
           grep -Fq "Campaign_Resubmission::render_form( \$campaign, \$redirect_url )" "$editor"
           grep -Fq "'resubmitted' === \$notice" "$editor"
+          grep -Fq "Campaign_Moderation::status_for_campaign( \$campaign->ID )" "$editor"
           grep -Fq "Campaign_Moderation::status_for_campaign( \$campaign->ID )" "$dashboard"
           grep -Fq "This campaign was rejected. Edit the campaign and explicitly resubmit it" "$dashboard"
 
@@ -52,6 +53,10 @@ jobs:
           fi
           if grep -Fq "Campaign_Moderation_Repository" "$resubmit"; then
             echo 'Promoter resubmission must use mark_submitted(), not administrator decision authority.' >&2
+            exit 1
+          fi
+          if grep -Fq "Campaign_Moderation::mark_submitted" "$editor"; then
+            echo 'Saving campaign content must remain separate from resubmission.' >&2
             exit 1
           fi
           if grep -Eiq 'woocommerce|\bwc_' "$resubmit"; then
