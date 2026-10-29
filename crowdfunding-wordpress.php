@@ -82,6 +82,7 @@ require_once CFWP_PLUGIN_DIR . 'includes/class-notification-email-delivery.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-notification-admin.php';
 require_once CFWP_PLUGIN_DIR . 'includes/compat/class-legacy-migration-mapping.php';
 require_once CFWP_PLUGIN_DIR . 'includes/compat/class-legacy-migration-inspector.php';
+require_once CFWP_PLUGIN_DIR . 'includes/compat/class-legacy-migration-plan.php';
 require_once CFWP_PLUGIN_DIR . 'includes/compat/class-legacy-migration-admin.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-activator.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-deactivator.php';
