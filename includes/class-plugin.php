@@ -23,6 +23,7 @@ final class Plugin {
 	private Promoter_Dashboard $promoter_dashboard;
 	private Promoter_Registration $promoter_registration;
 	private Campaign_Progress $campaign_progress;
+	private Reward_Fulfillment_Lifecycle_Bridge $reward_fulfillment_lifecycle_bridge;
 	private WooCommerce_Adapter $woocommerce_adapter;
 	private WooCommerce_Refund_Adapter $woocommerce_refund_adapter;
 	private WooCommerce_Reward_Adapter $woocommerce_reward_adapter;
@@ -30,20 +31,21 @@ final class Plugin {
 	private bool $running = false;
 
 	private function __construct() {
-		$this->campaigns                  = new Campaigns();
-		$this->campaign_admin             = new Campaign_Admin();
-		$this->shortcodes                 = new Shortcodes();
-		$this->campaign_submission        = new Campaign_Submission();
-		$this->campaign_editor            = new Campaign_Editor();
-		$this->reward_manager             = new Reward_Manager();
-		$this->reward_display             = new Reward_Display();
-		$this->promoter_dashboard         = new Promoter_Dashboard();
-		$this->promoter_registration      = new Promoter_Registration();
-		$this->campaign_progress          = new Campaign_Progress();
-		$this->woocommerce_adapter        = new WooCommerce_Adapter();
-		$this->woocommerce_refund_adapter = new WooCommerce_Refund_Adapter();
-		$this->woocommerce_reward_adapter = new WooCommerce_Reward_Adapter();
-		$this->contribution_checkout      = new Contribution_Checkout();
+		$this->campaigns                            = new Campaigns();
+		$this->campaign_admin                       = new Campaign_Admin();
+		$this->shortcodes                           = new Shortcodes();
+		$this->campaign_submission                  = new Campaign_Submission();
+		$this->campaign_editor                      = new Campaign_Editor();
+		$this->reward_manager                       = new Reward_Manager();
+		$this->reward_display                       = new Reward_Display();
+		$this->promoter_dashboard                   = new Promoter_Dashboard();
+		$this->promoter_registration                = new Promoter_Registration();
+		$this->campaign_progress                    = new Campaign_Progress();
+		$this->reward_fulfillment_lifecycle_bridge  = new Reward_Fulfillment_Lifecycle_Bridge();
+		$this->woocommerce_adapter                  = new WooCommerce_Adapter();
+		$this->woocommerce_refund_adapter           = new WooCommerce_Refund_Adapter();
+		$this->woocommerce_reward_adapter           = new WooCommerce_Reward_Adapter();
+		$this->contribution_checkout                = new Contribution_Checkout();
 	}
 
 	public static function instance(): Plugin {
@@ -65,6 +67,7 @@ final class Plugin {
 		$this->woocommerce_refund_adapter->register();
 		$this->woocommerce_reward_adapter->register();
 		$this->contribution_checkout->register();
+		$this->reward_fulfillment_lifecycle_bridge->register();
 
 		add_action( 'init', array( Promoters::class, 'maybe_install' ), 1 );
 		add_action( 'init', array( Contributions::class, 'maybe_install' ), 2 );
