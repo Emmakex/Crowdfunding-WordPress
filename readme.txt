@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.5.4
+Stable tag: 0.5.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,7 +11,7 @@ Create and manage crowdfunding campaigns directly in WordPress. Built by Kairose
 
 == Description ==
 
-Crowdfunding WordPress provides a generic crowdfunding domain for WordPress with campaigns, promoters, contributions, refund-safe accounting, rewards, reward claims, fulfillment lifecycle, account dashboards, campaign statistics, WooCommerce checkout integration and public funding progress.
+Crowdfunding WordPress provides a generic crowdfunding domain for WordPress with campaigns, promoters, contributions, refund-safe accounting, rewards, reward claims, fulfillment lifecycle, account dashboards, campaign statistics, promoter portfolio statistics, WooCommerce checkout integration and public funding progress.
 
 The Core remains independent from any single crowdfunding platform, payment gateway or vertical implementation.
 
@@ -36,6 +36,9 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Pending-delivery workload and completion rate derived exclusively from Core fulfillment records.
 * Read-only fulfillment reconciliation health diagnostics scoped to authorized campaigns.
 * Aggregate lifecycle-drift and post-fulfillment entitlement-reversal counts without supporter rows or repair actions.
+* Authenticated current-promoter portfolio statistics across every owned draft, pending and published campaign.
+* Portfolio campaign counts, contributions, active entitlements, pending delivery and reconciliation-health totals derived from existing Core authorities.
+* Portfolio net raised grouped by campaign currency so unlike currencies are never cross-summed.
 * Generic versioned rewards domain linked to campaigns.
 * Authenticated frontend reward management and public reward cards.
 * Versioned reward-claims ledger with active/reversed states and source/reference idempotency.
@@ -73,6 +76,7 @@ The Core remains independent from any single crowdfunding platform, payment gate
 16. Publish `[crowdfunding_contribution_dashboard]` on an authenticated account page so signed-in users can review their own account-linked contributions.
 17. Publish `[crowdfunding_campaign_statistics]` on an authenticated promoter page to show aggregate Core statistics, fulfillment workload and contribution trends for one authorized campaign.
 18. Add `[crowdfunding_fulfillment_health]` to an authenticated promoter/admin page when aggregate entitlement-versus-fulfillment reconciliation health should be monitored.
+19. Publish `[crowdfunding_promoter_portfolio]` on an authenticated promoter page for an executive aggregate view across every campaign owned by the current account.
 
 == Contributions and adjustments ==
 
@@ -113,6 +117,10 @@ The surface shows `pending`, `processing`, `fulfilled` and `cancelled` counts. P
 Version 0.5.4 adds `[crowdfunding_fulfillment_health]`, a separate read-only aggregate diagnostic surface using the same campaign-owner/admin authority boundary. It compares current Core claim status with current Core fulfillment state and does not repair records automatically.
 
 Health counts four disjoint conditions: active claims with no fulfillment, active claims whose fulfillment remains cancelled, reversed claims whose fulfillment is still pending/processing, and reversed claims whose fulfillment was already fulfilled. The first three are lifecycle drift; the last is a manual-review exception because fulfilled delivery is terminal and must not be undone automatically. No claim IDs, fulfillment IDs or supporter PII are returned.
+
+Version 0.5.5 adds `[crowdfunding_promoter_portfolio]`, an authenticated current-account executive summary across all owned draft, pending and published campaigns. It accepts no account selector: portfolio identity comes exclusively from `get_current_user_id()`.
+
+Portfolio totals reuse `Campaign_Statistics_Query` and `Fulfillment_Reconciliation_Health_Query` for each owned campaign. It reports campaign states, contributions, active entitlements, pending delivery, reconciliation-health issues and campaigns needing attention. Net raised values remain refund-adjusted Core totals and are grouped by campaign currency; unlike currencies are never added together.
 
 == Rewards ==
 
@@ -220,6 +228,9 @@ Displays aggregate contribution, reward-entitlement and fulfillment statistics p
 = [crowdfunding_fulfillment_health] =
 Displays aggregate read-only entitlement-versus-fulfillment reconciliation health for one authorized campaign. Optional `id` selects the campaign; otherwise it uses `cfwp_campaign_id`. It reports lifecycle drift and terminal post-delivery reversal exceptions without exposing supporter or record-level identities.
 
+= [crowdfunding_promoter_portfolio] =
+Displays aggregate statistics across every draft, pending and published campaign owned by the current signed-in account. It accepts no user/account selector and reports net raised separately by campaign currency.
+
 = [crowdfunding_promoter_register] =
 Displays promoter registration when WordPress user registration is enabled.
 
@@ -275,6 +286,14 @@ Version 0.5.4 checks aggregate Core consistency only. Lifecycle drift includes a
 
 No. `[crowdfunding_fulfillment_health]` is intentionally read-only. It does not call fulfillment transitions, backfill or claim reconciliation and never uses WooCommerce order status as authority.
 
+= Can promoter portfolio statistics be opened for another account? =
+
+No. `[crowdfunding_promoter_portfolio]` derives its owner exclusively from `get_current_user_id()` and accepts no browser-supplied user/account selector. Administrators see their own portfolio on this surface rather than using it to impersonate another promoter.
+
+= Why is portfolio net raised split by currency? =
+
+Campaigns can use different currencies. Version 0.5.5 keeps each authoritative refund-adjusted campaign total in its campaign currency and groups matching currencies only; EUR, USD or other currencies are never added together as if they were comparable.
+
 = Are rewards WooCommerce products? =
 
 No. Reward definitions, claims and fulfillment belong to the generic crowdfunding Core. WooCommerce transports payment/order lifecycle evidence.
@@ -316,6 +335,16 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.5.5 =
+* Added `[crowdfunding_promoter_portfolio]` as a current-account aggregate portfolio statistics surface.
+* Added campaign totals and draft, pending and published portfolio counts.
+* Added portfolio contribution totals, active reward entitlements and pending-delivery workload from existing Core campaign statistics authority.
+* Added aggregate reconciliation-health issues, repairable drift, manual-review exceptions and campaigns needing attention.
+* Added net raised totals grouped by campaign currency, with unlike currencies never cross-summed.
+* Kept portfolio identity bound to `get_current_user_id()` with no browser-supplied account selector.
+* Kept portfolio output aggregate, WooCommerce-independent and free of supporter rows, technical references and customer PII.
+* Closed the 0.5.x dashboards/statistics milestone.
 
 = 0.5.4 =
 * Added `[crowdfunding_fulfillment_health]` as a campaign-scoped read-only reconciliation-health surface.
