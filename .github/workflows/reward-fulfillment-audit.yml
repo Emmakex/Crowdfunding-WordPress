@@ -1,0 +1,53 @@
+name: Reward Fulfillment Audit
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  reward-fulfillment-audit-contract:
+    name: Reward fulfillment audit authority contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify fulfillment audit remains read-only and campaign-scoped
+        shell: bash
+        run: |
+          set -euo pipefail
+          audit='includes/class-reward-fulfillment-audit.php'
+          query='includes/class-reward-fulfillment-query.php'
+          bootstrap='crowdfunding-wordpress.php'
+          plugin='includes/class-plugin.php'
+
+          grep -Fq "add_shortcode( 'crowdfunding_fulfillment_audit'" "$audit"
+          grep -Fq "current_user_can( self::CAPABILITY )" "$audit"
+          grep -Fq "(int) \$campaign->post_author === get_current_user_id()" "$audit"
+          grep -Fq "current_user_can( 'edit_others_cfwp_campaigns' )" "$audit"
+          grep -Fq "\$query->list_for_campaign( \$campaign->ID )" "$audit"
+          grep -Fq "\$query->list_events( \$fulfillment_id )" "$audit"
+          grep -Fq "source_reference" "$audit"
+          grep -Fq "Event #%d" "$audit"
+          grep -Fq "public function list_events( int \$fulfillment_id ): array" "$query"
+          grep -Fq "Reward_Fulfillments::events_table_name()" "$query"
+          grep -Fq "ORDER BY id ASC" "$query"
+          grep -Fq "includes/class-reward-fulfillment-audit.php" "$bootstrap"
+          grep -Fq "Reward_Fulfillment_Audit::class, 'register'" "$plugin"
+
+          if grep -Fq "admin_post_" "$audit"; then
+            echo 'Fulfillment audit must not register write actions.'
+            exit 1
+          fi
+
+          if grep -Eq '\$_POST|->transition\(|->ensure_for_claim\(|\$wpdb|woocommerce|\bwc_' "$audit"; then
+            echo 'Fulfillment audit must remain read-only and commerce-independent.'
+            exit 1
+          fi
+
+          if grep -Eq 'INSERT|UPDATE|DELETE|START TRANSACTION|COMMIT|ROLLBACK' "$query"; then
+            echo 'Fulfillment query layer must remain read-only.'
+            exit 1
+          fi

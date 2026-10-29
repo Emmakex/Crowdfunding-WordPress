@@ -1,0 +1,82 @@
+.cfwp-fulfillment-audit {
+	display: grid;
+	gap: 1.25rem;
+	margin: 1.25rem 0;
+}
+
+.cfwp-fulfillment-audit__header h2,
+.cfwp-fulfillment-audit-card__header h3,
+.cfwp-fulfillment-audit__header p,
+.cfwp-fulfillment-audit-card__header p,
+.cfwp-fulfillment-timeline__meta {
+	margin-top: 0;
+}
+
+.cfwp-fulfillment-audit__list {
+	display: grid;
+	gap: 1rem;
+}
+
+.cfwp-fulfillment-audit-card {
+	display: grid;
+	gap: 1rem;
+	padding: 1rem;
+	border: 1px solid currentColor;
+	border-radius: 0.6rem;
+}
+
+.cfwp-fulfillment-timeline {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.cfwp-fulfillment-timeline__event {
+	position: relative;
+	display: grid;
+	gap: 0.35rem;
+	padding: 0 0 1rem 1.25rem;
+}
+
+.cfwp-fulfillment-timeline__event:not(:last-child)::before {
+	content: "";
+	position: absolute;
+	top: 0.65rem;
+	bottom: -0.1rem;
+	left: 0.3rem;
+	border-left: 1px solid currentColor;
+	opacity: 0.45;
+}
+
+.cfwp-fulfillment-timeline__event::after {
+	content: "";
+	position: absolute;
+	top: 0.4rem;
+	left: 0;
+	width: 0.65rem;
+	height: 0.65rem;
+	border: 2px solid currentColor;
+	border-radius: 50%;
+	background: Canvas;
+}
+
+.cfwp-fulfillment-timeline__event-main {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 0.5rem 1rem;
+	align-items: baseline;
+}
+
+.cfwp-fulfillment-timeline__meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem 1rem;
+	margin-bottom: 0;
+	font-size: 0.9em;
+}
+
+.cfwp-fulfillment-timeline__meta code {
+	font-size: 0.95em;
+	overflow-wrap: anywhere;
+}

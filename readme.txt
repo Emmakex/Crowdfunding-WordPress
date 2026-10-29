@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.4.10
+Stable tag: 0.4.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -38,6 +38,7 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Automatic claim-lifecycle synchronization into fulfillment state.
 * Bounded, idempotent backfill for historical active claims that predate fulfillment synchronization.
 * Authenticated campaign-scoped fulfillment management for promoters and administrators.
+* Read-only campaign-scoped fulfillment audit timelines from immutable transition events.
 * HPOS-safe WooCommerce order/refund integration through CRUD objects.
 * Safe activation, versioned upgrades and translation-ready strings.
 
@@ -57,6 +58,7 @@ The Core remains independent from any single crowdfunding platform, payment gate
 12. Publish `[crowdfunding_submit_campaign]`, `[crowdfunding_edit_campaign]` and `[crowdfunding_promoter_dashboard edit_url="/edit-campaign/" rewards_url="/manage-rewards/" fulfillment_url="/manage-fulfillment/"]` for the promoter workflow.
 13. Publish `[crowdfunding_manage_rewards]` on a promoter-only page for reward management.
 14. Publish `[crowdfunding_manage_fulfillment]` on an authenticated page for campaign-scoped delivery operations.
+15. Add `[crowdfunding_fulfillment_audit]` to the same page or another authenticated page when the immutable fulfillment history should be visible.
 
 == Contributions and adjustments ==
 
@@ -107,6 +109,10 @@ Version 0.4.10 adds a dedicated `manage_cfwp_fulfillments` capability and `[crow
 The management UI derives campaign ownership from fulfillment → claim → reward on the server. A browser-supplied fulfillment ID is only a selector. Manual operations are deliberately restricted to `pending → processing`, `pending → fulfilled` and `processing → fulfilled`. `cancelled` remains controlled by entitlement lifecycle and `fulfilled` remains terminal.
 
 Fulfillment management calls `Reward_Fulfillment_Repository::transition()` and therefore preserves immutable transition events. The UI and its read-only query layer do not integrate with WooCommerce and store no shipping, billing, tracking or customer PII.
+
+Version 0.4.11 adds `[crowdfunding_fulfillment_audit]`, a separate read-only timeline for authorized campaign fulfillment history. It uses the same owner/admin campaign boundary as fulfillment management but registers no write action.
+
+The audit timeline reads immutable events in event-ID order and shows the human-readable transition, event time, origin, stable source reference and event ID. It does not create a second audit store, cannot change fulfillment or entitlement state and has no WooCommerce or customer-PII dependency.
 
 == Reward selection and WooCommerce bridge ==
 
@@ -174,6 +180,9 @@ Displays authenticated reward management for one owned draft/pending campaign.
 = [crowdfunding_manage_fulfillment] =
 Displays authenticated fulfillment operations for one authorized campaign. Promoters are restricted to campaigns they own; administrators may supervise other campaigns. The UI can advance only pending/processing delivery state and cannot manually cancel or reactivate entitlement-owned state.
 
+= [crowdfunding_fulfillment_audit] =
+Displays the immutable chronological fulfillment event history for one authorized campaign. Optional `id` selects the campaign; otherwise it uses `cfwp_campaign_id`. The timeline is read-only and exposes event origin, stable source reference and event ID.
+
 = [crowdfunding_promoter_dashboard] =
 Displays the current user's draft, pending and published campaigns. Optional `per_page`, `edit_url`, `rewards_url` and `fulfillment_url` attributes.
 
@@ -194,6 +203,10 @@ No. `cancelled` and the return from `cancelled` to `pending` are controlled by t
 = Can fulfillment management edit a published campaign? =
 
 No. `manage_cfwp_fulfillments` is a separate capability. Promoters still cannot edit published campaign content.
+
+= Can the fulfillment audit timeline change delivery state? =
+
+No. `[crowdfunding_fulfillment_audit]` is read-only. It reads the immutable event ledger after campaign authorization and registers no write action.
 
 = What happens when entitlement is reversed? =
 
@@ -216,6 +229,13 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.4.11 =
+* Added `[crowdfunding_fulfillment_audit]` as a campaign-scoped read-only fulfillment timeline.
+* Added immutable event reads to `Reward_Fulfillment_Query`, ordered chronologically by event ID.
+* Timeline shows transition, timestamp, event origin, stable source reference and event ID.
+* Reused the existing `manage_cfwp_fulfillments` owner/admin authority without adding campaign-edit permissions.
+* Kept audit separate from write actions, repository transitions, WooCommerce and customer/shipping PII.
 
 = 0.4.10 =
 * Added dedicated `manage_cfwp_fulfillments` capability for promoters and administrators.
