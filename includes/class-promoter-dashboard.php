@@ -71,7 +71,7 @@ final class Promoter_Dashboard {
 		<section class="cfwp-dashboard">
 			<header class="cfwp-dashboard__header">
 				<h2><?php esc_html_e( 'My crowdfunding campaigns', 'crowdfunding-wordpress' ); ?></h2>
-				<p><?php esc_html_e( 'Review the current status and funding details of campaigns owned by your account.', 'crowdfunding-wordpress' ); ?></p>
+				<p><?php esc_html_e( 'Review the editorial and moderation status plus funding details of campaigns owned by your account.', 'crowdfunding-wordpress' ); ?></p>
 			</header>
 
 			<?php if ( ! $query->have_posts() ) : ?>
@@ -92,11 +92,12 @@ final class Promoter_Dashboard {
 	}
 
 	private function render_campaign( \WP_Post $campaign, string $edit_url, string $rewards_url, string $fulfillment_url, string $statistics_url ): string {
-		$goal_amount = (float) get_post_meta( $campaign->ID, Campaigns::META_GOAL_AMOUNT, true );
-		$currency    = (string) get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true );
-		$deadline    = (string) get_post_meta( $campaign->ID, Campaigns::META_DEADLINE, true );
-		$status       = get_post_status_object( $campaign->post_status );
-		$status_label = is_object( $status ) && isset( $status->label ) ? (string) $status->label : $campaign->post_status;
+		$goal_amount      = (float) get_post_meta( $campaign->ID, Campaigns::META_GOAL_AMOUNT, true );
+		$currency         = (string) get_post_meta( $campaign->ID, Campaigns::META_CURRENCY, true );
+		$deadline         = (string) get_post_meta( $campaign->ID, Campaigns::META_DEADLINE, true );
+		$editorial_status = get_post_status_object( $campaign->post_status );
+		$editorial_label  = is_object( $editorial_status ) && isset( $editorial_status->label ) ? (string) $editorial_status->label : $campaign->post_status;
+		$moderation       = Campaign_Moderation::status_for_campaign( $campaign->ID );
 
 		ob_start();
 		?>
@@ -104,9 +105,15 @@ final class Promoter_Dashboard {
 			<div class="cfwp-dashboard-card__main">
 				<h3><?php echo esc_html( get_the_title( $campaign ) ); ?></h3>
 				<p class="cfwp-dashboard-card__status">
-					<span><?php esc_html_e( 'Status:', 'crowdfunding-wordpress' ); ?></span>
-					<strong><?php echo esc_html( $status_label ); ?></strong>
+					<span><?php esc_html_e( 'Editorial status:', 'crowdfunding-wordpress' ); ?></span>
+					<strong><?php echo esc_html( $editorial_label ); ?></strong>
 				</p>
+				<?php if ( '' !== $moderation ) : ?>
+					<p class="cfwp-dashboard-card__status">
+						<span><?php esc_html_e( 'Moderation status:', 'crowdfunding-wordpress' ); ?></span>
+						<strong><?php echo esc_html( $this->moderation_status_label( $moderation ) ); ?></strong>
+					</p>
+				<?php endif; ?>
 			</div>
 
 			<div class="cfwp-dashboard-card__facts">
@@ -150,14 +157,39 @@ final class Promoter_Dashboard {
 					</p>
 				<?php endif; ?>
 
-				<?php if ( 'pending' === $campaign->post_status ) : ?>
-					<p class="cfwp-dashboard-card__message"><?php esc_html_e( 'This campaign is awaiting review.', 'crowdfunding-wordpress' ); ?></p>
-				<?php endif; ?>
+				<?php echo $this->render_moderation_message( $moderation ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			<?php endif; ?>
 		</article>
 		<?php
 
 		return (string) ob_get_clean();
+	}
+
+	private function render_moderation_message( string $status ): string {
+		$messages = array(
+			Campaign_Moderation::STATUS_SUBMITTED => __( 'This campaign is awaiting moderation review.', 'crowdfunding-wordpress' ),
+			Campaign_Moderation::STATUS_IN_REVIEW => __( 'This campaign is currently being reviewed.', 'crowdfunding-wordpress' ),
+			Campaign_Moderation::STATUS_REJECTED  => __( 'This campaign was rejected. Edit the campaign and explicitly resubmit it when it is ready for another review.', 'crowdfunding-wordpress' ),
+			Campaign_Moderation::STATUS_APPROVED  => __( 'This campaign is approved in Core moderation and remains subject to the separate WordPress editorial publication state.', 'crowdfunding-wordpress' ),
+		);
+
+		if ( ! isset( $messages[ $status ] ) ) {
+			return '';
+		}
+
+		$class = Campaign_Moderation::STATUS_REJECTED === $status ? ' cfwp-notice--error' : '';
+		return '<p class="cfwp-dashboard-card__message cfwp-notice' . esc_attr( $class ) . '">' . esc_html( $messages[ $status ] ) . '</p>';
+	}
+
+	private function moderation_status_label( string $status ): string {
+		$labels = array(
+			Campaign_Moderation::STATUS_SUBMITTED => __( 'Submitted', 'crowdfunding-wordpress' ),
+			Campaign_Moderation::STATUS_IN_REVIEW => __( 'In review', 'crowdfunding-wordpress' ),
+			Campaign_Moderation::STATUS_APPROVED  => __( 'Approved', 'crowdfunding-wordpress' ),
+			Campaign_Moderation::STATUS_REJECTED  => __( 'Rejected', 'crowdfunding-wordpress' ),
+		);
+
+		return $labels[ $status ] ?? $status;
 	}
 
 	private function render_pagination( int $page, int $max_pages ): string {
