@@ -72,6 +72,7 @@ require_once CFWP_PLUGIN_DIR . 'includes/class-promoter-dashboard.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-promoter-registration.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-notification-events.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-notification-recipient-resolver.php';
+require_once CFWP_PLUGIN_DIR . 'includes/class-notification-delivery-intents.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-activator.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-deactivator.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-plugin.php';
