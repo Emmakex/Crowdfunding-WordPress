@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.5.5
+Stable tag: 0.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,7 +11,7 @@ Create and manage crowdfunding campaigns directly in WordPress. Built by Kairose
 
 == Description ==
 
-Crowdfunding WordPress provides a generic crowdfunding domain for WordPress with campaigns, promoters, contributions, refund-safe accounting, rewards, reward claims, fulfillment lifecycle, account dashboards, campaign statistics, promoter portfolio statistics, WooCommerce checkout integration and public funding progress.
+Crowdfunding WordPress provides a generic crowdfunding domain for WordPress with campaigns, independent campaign moderation, promoters, contributions, refund-safe accounting, rewards, reward claims, fulfillment lifecycle, account dashboards, campaign statistics, promoter portfolio statistics, WooCommerce checkout integration and public funding progress.
 
 The Core remains independent from any single crowdfunding platform, payment gateway or vertical implementation.
 
@@ -19,6 +19,10 @@ The Core remains independent from any single crowdfunding platform, payment gate
 
 * Generic crowdfunding campaign post type with REST support.
 * Campaign funding goal, ISO currency and deadline metadata.
+* Independent Core campaign moderation state separate from WordPress editorial post status.
+* `submitted`, `in_review`, `approved` and `rejected` moderation states with an explicit transition graph.
+* Dedicated `moderate_cfwp_campaigns` authority granted to administrators and explicitly denied to promoters.
+* New frontend campaign submissions remain WordPress `pending` while independently entering Core moderation as `submitted`.
 * Public campaign catalogue and campaign detail shortcodes.
 * Authoritative net raised amount derived from confirmed contributions minus applied refund adjustments.
 * Frontend promoter registration, campaign submission, editing and personal dashboard.
@@ -77,6 +81,18 @@ The Core remains independent from any single crowdfunding platform, payment gate
 17. Publish `[crowdfunding_campaign_statistics]` on an authenticated promoter page to show aggregate Core statistics, fulfillment workload and contribution trends for one authorized campaign.
 18. Add `[crowdfunding_fulfillment_health]` to an authenticated promoter/admin page when aggregate entitlement-versus-fulfillment reconciliation health should be monitored.
 19. Publish `[crowdfunding_promoter_portfolio]` on an authenticated promoter page for an executive aggregate view across every campaign owned by the current account.
+
+== Campaign moderation ==
+
+Version 0.6.0 introduces an independent Core moderation authority stored as `_cfwp_moderation_status`. Its states are `submitted`, `in_review`, `approved` and `rejected`. This state does not replace WordPress `post_status`: WordPress remains responsible for editorial publication and visibility.
+
+New frontend submissions therefore keep `post_status = pending` and independently receive Core moderation state `submitted`. Moderation never automatically publishes, unpublishes or changes campaign visibility in this foundation.
+
+The initial state graph is: no moderation state → `submitted`; `submitted` → `in_review`, `approved` or `rejected`; `in_review` → `approved` or `rejected`; `rejected` → `submitted`; `approved` is terminal in 0.6.0. The graph is defined as Core policy, but no moderation UI or decision action is introduced yet.
+
+The dedicated `moderate_cfwp_campaigns` capability belongs to administrators. Promoters are explicitly denied that capability even though they may edit their own draft/pending campaigns and manage fulfillment through separate authorities.
+
+Campaigns created before 0.6.0 are deliberately not assigned a moderation decision by guessing from their current WordPress `post_status`. Legacy/backfill compatibility will be handled as a separate versioned migration so historical editorial state is not silently rewritten as moderation evidence.
 
 == Contributions and adjustments ==
 
@@ -198,9 +214,9 @@ The checkout uses a hidden virtual WooCommerce product as a transport line only.
 
 == Promoters ==
 
-The `cfwp_promoter` role can create and edit its own draft or pending campaigns and manage fulfillment for rewards belonging to campaigns it owns. Promoters cannot publish campaigns, edit published campaigns or manage campaigns owned by other users.
+The `cfwp_promoter` role can create and edit its own draft or pending campaigns and manage fulfillment for rewards belonging to campaigns it owns. Promoters cannot moderate or publish campaigns, edit published campaigns or manage campaigns owned by other users.
 
-Administrators retain full authority over review, publication and cross-campaign fulfillment/statistics supervision.
+Administrators retain the dedicated `moderate_cfwp_campaigns` authority as well as publication and cross-campaign fulfillment/statistics supervision.
 
 == Shortcodes ==
 
@@ -235,7 +251,7 @@ Displays aggregate statistics across every draft, pending and published campaign
 Displays promoter registration when WordPress user registration is enabled.
 
 = [crowdfunding_submit_campaign] =
-Displays the authenticated promoter campaign submission form. Accepted submissions are always pending review.
+Displays the authenticated promoter campaign submission form. New submissions remain WordPress `pending` and independently enter Core moderation as `submitted`.
 
 = [crowdfunding_edit_campaign] =
 Displays the editor for one campaign owned by the current user. Only draft and pending campaigns are editable.
@@ -253,6 +269,14 @@ Displays the immutable chronological fulfillment event history for one authorize
 Displays the current user's draft, pending and published campaigns. Optional `per_page`, `edit_url`, `rewards_url`, `fulfillment_url` and `statistics_url` attributes.
 
 == Frequently Asked Questions ==
+
+= Is campaign moderation the same as WordPress post status? =
+
+No. Version 0.6.0 introduces a separate Core moderation state. A campaign can be WordPress `pending` while Core moderation is `submitted` or `in_review`. Moderation does not publish or change visibility by itself.
+
+= Are existing campaigns automatically marked approved or submitted in 0.6.0? =
+
+No. Existing campaigns are not assigned a historical moderation decision by guessing from their current `post_status`. A later compatibility migration can translate legacy state explicitly and audibly.
 
 = Can the contribution dashboard show another user's contributions? =
 
@@ -335,6 +359,15 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.6.0 =
+* Added independent Core campaign moderation status separate from WordPress editorial `post_status`.
+* Added `submitted`, `in_review`, `approved` and `rejected` moderation states and an explicit transition graph.
+* Added dedicated `moderate_cfwp_campaigns` capability for administrators and explicitly denied it to promoters.
+* New frontend campaign submissions remain WordPress `pending` while entering Core moderation as `submitted`.
+* Moderation state registration is not writable through REST and does not publish, unpublish or change campaign visibility.
+* Existing campaigns are intentionally not backfilled or reclassified from historical WordPress post status in this cut.
+* Kept moderation independent from WooCommerce, contributions, rewards and fulfillment.
 
 = 0.5.5 =
 * Added `[crowdfunding_promoter_portfolio]` as a current-account aggregate portfolio statistics surface.
