@@ -1,0 +1,74 @@
+name: Campaign Moderation Backfill
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  moderation-backfill:
+    name: Campaign moderation backfill contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify legacy moderation reconciliation remains bounded and non-destructive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          reconciler="includes/class-campaign-moderation-backfill-reconciler.php"
+          authority="includes/class-campaign-moderation.php"
+          bootstrap="crowdfunding-wordpress.php"
+          plugin="includes/class-plugin.php"
+
+          grep -Fq "private const OPTION_VERSION   = 'cfwp_campaign_moderation_backfill_version';" "$reconciler"
+          grep -Fq "private const BACKFILL_VERSION = '1';" "$reconciler"
+          grep -Fq "private const DEFAULT_BATCH    = 50;" "$reconciler"
+          grep -Fq "min( 200, \$batch_size )" "$reconciler"
+          grep -Fq "cfwp_campaign_moderation_backfill_batch_size" "$reconciler"
+          grep -Fq "Campaign_Moderation::bootstrap_legacy_status( \$campaign_id, \$target_status )" "$reconciler"
+          grep -Fq "'pending'" "$reconciler"
+          grep -Fq "Campaign_Moderation::STATUS_SUBMITTED" "$reconciler"
+          grep -Fq "'publish'" "$reconciler"
+          grep -Fq "Campaign_Moderation::STATUS_APPROVED" "$reconciler"
+          grep -Fq "LEFT JOIN {\$wpdb->postmeta} pm" "$reconciler"
+          grep -Fq "AND pm.meta_key = %s" "$reconciler"
+          grep -Fq "AND pm.meta_id IS NULL" "$reconciler"
+          grep -Fq "ORDER BY p.ID ASC" "$reconciler"
+          grep -Fq "LIMIT %d" "$reconciler"
+          grep -Fq "find_missing_legacy_campaigns( 1 )" "$reconciler"
+          grep -Fq "cfwp_campaign_moderation_backfill_error" "$reconciler"
+          grep -Fq "cfwp_campaign_moderation_backfill_completed" "$reconciler"
+
+          grep -Fq "public static function bootstrap_legacy_status" "$authority"
+          grep -Fq "'pending' => self::STATUS_SUBMITTED" "$authority"
+          grep -Fq "'publish' => self::STATUS_APPROVED" "$authority"
+          grep -Fq "metadata_exists( 'post', \$campaign_id, self::META_STATUS )" "$authority"
+          grep -Fq "add_post_meta( \$campaign_id, self::META_STATUS, \$status, true )" "$authority"
+          grep -Fq "'legacy_backfill'" "$authority"
+
+          grep -Fq "includes/class-campaign-moderation-backfill-reconciler.php" "$bootstrap"
+          grep -Fq "Campaign_Moderation_Backfill_Reconciler" "$plugin"
+          grep -Fq "campaign_moderation_backfill_reconciler->register()" "$plugin"
+
+          if grep -Eq "'(draft|private|trash)'[[:space:]]*=>[[:space:]]*Campaign_Moderation::STATUS_" "$reconciler"; then
+            echo 'Draft/private/trash campaigns must not be inferred into moderation.'
+            exit 1
+          fi
+
+          if grep -Eq 'update_post_meta|delete_post_meta|wp_update_post|wp_publish_post|wp_transition_post_status|transition_post_status' "$reconciler"; then
+            echo 'Backfill must delegate moderation writes and never mutate editorial state.'
+            exit 1
+          fi
+
+          if grep -Eq 'update_post_meta|delete_post_meta' "$authority" | grep -q 'bootstrap_legacy_status'; then
+            exit 1
+          fi
+
+          if grep -Eq 'woocommerce|\bwc_|Contribution|Reward_|Fulfillment' "$reconciler"; then
+            echo 'Campaign moderation backfill must remain independent from commerce and reward domains.'
+            exit 1
+          fi
