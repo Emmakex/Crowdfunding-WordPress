@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.5.1
+Stable tag: 0.5.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -30,6 +30,8 @@ The Core remains independent from any single crowdfunding platform, payment gate
 * Contribution dashboard reward entitlement derived from Core reward claims.
 * Authenticated campaign-owner statistics with aggregate contribution and reward-claim counts.
 * Campaign statistics reuse authoritative refund-adjusted net funding totals and never expose supporter rows.
+* Bounded campaign contribution trends grouped by day, week or month across selectable date ranges.
+* Trend net values use current confirmed/refund-adjusted Core facts attributed to contribution creation periods.
 * Generic versioned rewards domain linked to campaigns.
 * Authenticated frontend reward management and public reward cards.
 * Versioned reward-claims ledger with active/reversed states and source/reference idempotency.
@@ -65,7 +67,7 @@ The Core remains independent from any single crowdfunding platform, payment gate
 14. Publish `[crowdfunding_manage_fulfillment]` on an authenticated page for campaign-scoped delivery operations.
 15. Add `[crowdfunding_fulfillment_audit]` to the same page or another authenticated page when immutable fulfillment history should be visible.
 16. Publish `[crowdfunding_contribution_dashboard]` on an authenticated account page so signed-in users can review their own account-linked contributions.
-17. Publish `[crowdfunding_campaign_statistics]` on an authenticated promoter page to show aggregate Core statistics for one authorized campaign.
+17. Publish `[crowdfunding_campaign_statistics]` on an authenticated promoter page to show aggregate Core statistics and contribution trends for one authorized campaign.
 
 == Contributions and adjustments ==
 
@@ -92,6 +94,12 @@ The statistics surface shows authoritative net raised amount, funding goal, fund
 Campaign selection can come from the shortcode `id` or `cfwp_campaign_id`, but access is always revalidated from the campaign record on the server. Promoters can view only campaigns they own; administrators may view other campaigns through `edit_others_cfwp_campaigns`.
 
 The statistics query is aggregate and read-only. It never returns supporter rows, user IDs, emails, billing/shipping details, payment references or WooCommerce customer/order data.
+
+Version 0.5.2 adds bounded contribution trends to the same statistics surface. Promoters can select a date range and group aggregate activity by day, week or month. The normalized range is capped at 366 days and invalid bucket values fall back to `day`.
+
+Each trend bucket shows contributions created in that period, how many of those contributions are currently confirmed, and their current net confirmed value after current applied refund adjustments. The net value is attributed to contribution `created_at`; it is not presented as a reconstructed historical balance because Core does not yet keep an immutable event ledger for every contribution status transition.
+
+`updated_at` is therefore not treated as evidence of when a contribution historically became confirmed, refunded or cancelled. Trend filters are read-only selectors and campaign authorization is completed before the aggregate query runs.
 
 == Rewards ==
 
@@ -194,7 +202,7 @@ Displays the WooCommerce-backed contribution form for a published, open campaign
 Displays the authenticated current user's account-linked contributions, net refund-adjusted amount and Core reward entitlement. Optional `per_page` accepts 1–24. Account identity always comes from the current WordPress session.
 
 = [crowdfunding_campaign_statistics] =
-Displays aggregate statistics for one authorized campaign. Optional `id` selects the campaign; otherwise it uses `cfwp_campaign_id`. Promoters can view only owned campaigns and no supporter-level rows are returned.
+Displays aggregate statistics and bounded day/week/month contribution trends for one authorized campaign. Optional `id` selects the campaign; otherwise it uses `cfwp_campaign_id`. Promoters can view only owned campaigns and no supporter-level rows are returned.
 
 = [crowdfunding_promoter_register] =
 Displays promoter registration when WordPress user registration is enabled.
@@ -233,7 +241,11 @@ No. Original amount, applied refunds and net amount are read from the Crowdfundi
 
 = Can campaign statistics identify supporters? =
 
-No. Version 0.5.1 returns aggregate counts and authoritative campaign totals only. It does not return supporter rows, WordPress user IDs, emails, billing/shipping fields or WooCommerce customer/order data.
+No. Campaign statistics return aggregate counts and Core totals only. They do not return supporter rows, WordPress user IDs, emails, billing/shipping fields or WooCommerce customer/order data.
+
+= Do campaign trend values reconstruct the amount raised on a past date? =
+
+No. Version 0.5.2 groups contributions by their creation period and shows their current confirmed/refund-adjusted net value. Crowdfunding WordPress does not yet keep a complete immutable contribution-status event ledger, so `updated_at` is not used to invent historical confirmation/refund timing.
 
 = Are rewards WooCommerce products? =
 
@@ -276,6 +288,15 @@ Yes. WooCommerce order/refund/reward bridges use WooCommerce CRUD objects instea
 No. Crowdfunding WordPress is a generic product. CulturalFunding is a reference implementation, not a dependency.
 
 == Changelog ==
+
+= 0.5.2 =
+* Added bounded campaign contribution trends to `[crowdfunding_campaign_statistics]`.
+* Added read-only date range filters with a maximum normalized span of 366 days.
+* Added allowlisted day, week and month aggregation buckets.
+* Added contributions-created, currently-confirmed and current net confirmed/refund-adjusted values per creation period.
+* Added an accessible tabular trend presentation with CSS-only proportional net-value bars.
+* Explicitly avoids treating `updated_at` as historical state-transition evidence or presenting current facts as reconstructed historical balances.
+* Kept trend queries aggregate, SELECT-only, WooCommerce-independent and free of supporter PII.
 
 = 0.5.1 =
 * Added `[crowdfunding_campaign_statistics]` for authenticated campaign-owner aggregate statistics.
