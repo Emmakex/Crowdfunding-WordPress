@@ -16,6 +16,7 @@ final class Campaign_Moderation_Admin {
 	private const ACTION       = 'cfwp_campaign_moderation_decide';
 	private const NONCE_ACTION = 'cfwp_campaign_moderation_decide';
 	private const NONCE_NAME   = 'cfwp_moderation_nonce';
+	private const PER_PAGE     = 20;
 
 	private Campaign_Moderation_Repository $repository;
 
@@ -41,7 +42,11 @@ final class Campaign_Moderation_Admin {
 
 	public function render_page(): void {
 		if ( ! current_user_can( 'moderate_cfwp_campaigns' ) ) {
-			wp_die( esc_html__( 'You are not allowed to moderate crowdfunding campaigns.', 'crowdfunding-wordpress' ) );
+			wp_die(
+				esc_html__( 'You are not allowed to moderate crowdfunding campaigns.', 'crowdfunding-wordpress' ),
+				'',
+				array( 'response' => 403 )
+			);
 		}
 
 		$campaign_id = isset( $_GET['cfwp_campaign_id'] ) ? absint( $_GET['cfwp_campaign_id'] ) : 0;
@@ -63,7 +68,11 @@ final class Campaign_Moderation_Admin {
 
 	public function handle_decision(): void {
 		if ( ! current_user_can( 'moderate_cfwp_campaigns' ) ) {
-			wp_die( esc_html__( 'You are not allowed to moderate crowdfunding campaigns.', 'crowdfunding-wordpress' ), 403 );
+			wp_die(
+				esc_html__( 'You are not allowed to moderate crowdfunding campaigns.', 'crowdfunding-wordpress' ),
+				'',
+				array( 'response' => 403 )
+			);
 		}
 
 		$campaign_id = isset( $_POST['campaign_id'] ) ? absint( $_POST['campaign_id'] ) : 0;
@@ -94,14 +103,15 @@ final class Campaign_Moderation_Admin {
 	}
 
 	private function render_queue(): void {
+		$page = isset( $_GET['cfwp_moderation_page'] ) ? max( 1, absint( $_GET['cfwp_moderation_page'] ) ) : 1;
 		$query = new \WP_Query(
 			array(
 				'post_type'      => Campaigns::POST_TYPE,
 				'post_status'    => 'any',
-				'posts_per_page' => 50,
+				'posts_per_page' => self::PER_PAGE,
+				'paged'          => $page,
 				'orderby'        => 'modified',
 				'order'          => 'ASC',
-				'no_found_rows'  => true,
 				'meta_query'     => array(
 					array(
 						'key'     => Campaign_Moderation::META_STATUS,
@@ -156,6 +166,41 @@ final class Campaign_Moderation_Admin {
 			</tbody>
 		</table>
 		<?php
+		$this->render_pagination( $page, (int) $query->max_num_pages );
+		wp_reset_postdata();
+	}
+
+	private function render_pagination( int $current_page, int $total_pages ): void {
+		if ( $total_pages <= 1 ) {
+			return;
+		}
+
+		$base = str_replace(
+			'999999999',
+			'%#%',
+			add_query_arg(
+				array(
+					'post_type'              => Campaigns::POST_TYPE,
+					'page'                   => self::PAGE_SLUG,
+					'cfwp_moderation_page'   => 999999999,
+				),
+				admin_url( 'edit.php' )
+			)
+		);
+		$links = paginate_links(
+			array(
+				'base'      => $base,
+				'format'    => '',
+				'current'   => max( 1, $current_page ),
+				'total'     => $total_pages,
+				'type'      => 'list',
+				'prev_text' => __( 'Previous', 'crowdfunding-wordpress' ),
+				'next_text' => __( 'Next', 'crowdfunding-wordpress' ),
+			)
+		);
+		if ( is_string( $links ) && '' !== $links ) {
+			echo '<div class="tablenav"><div class="tablenav-pages">' . wp_kses_post( $links ) . '</div></div>';
+		}
 	}
 
 	private function render_campaign( int $campaign_id ): void {
