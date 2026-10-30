@@ -1,0 +1,57 @@
+name: Legacy Migration Evidence
+
+on:
+  pull_request:
+    paths:
+      - 'includes/compat/class-legacy-migration-evidence.php'
+      - 'includes/compat/class-legacy-migration-admin.php'
+      - 'crowdfunding-wordpress.php'
+      - '.github/workflows/legacy-migration-evidence.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  legacy-migration-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify evidence export remains protected, structural and read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence='includes/compat/class-legacy-migration-evidence.php'
+          admin='includes/compat/class-legacy-migration-admin.php'
+          bootstrap='crowdfunding-wordpress.php'
+
+          grep -Fq 'final class Legacy_Migration_Evidence' "$evidence"
+          grep -Fq "public const SCHEMA_VERSION = '1';" "$evidence"
+          grep -Fq '$plan->preview()' "$evidence"
+          grep -Fq "'campaign_core_meta'" "$evidence"
+          grep -Fq "'contribution_fields'" "$evidence"
+          grep -Fq "'write_ready'" "$evidence"
+          grep -Fq "'preview'" "$evidence"
+          grep -Fq "'source_id'" "$evidence"
+          grep -Fq "'target_slug'" "$evidence"
+          grep -Fq "'status'" "$evidence"
+          grep -Fq "admin_post_" "$admin"
+          grep -Fq "current_user_can( 'manage_options' )" "$admin"
+          grep -Fq 'check_admin_referer' "$admin"
+          grep -Fq 'Content-Type: application/json' "$admin"
+          grep -Fq 'Content-Disposition: attachment;' "$admin"
+          grep -Fq 'wp_json_encode' "$admin"
+          grep -Fq 'includes/compat/class-legacy-migration-evidence.php' "$bootstrap"
+
+          if grep -Eiq 'wp_insert_post|wp_update_post|update_post_meta|add_post_meta|delete_post_meta|\$wpdb->(insert|update|delete|replace)|dbDelta|update_option|add_option|delete_option|set_transient' "$evidence" "$admin"; then
+            echo 'Migration evidence export must remain read-only.' >&2
+            exit 1
+          fi
+
+          if grep -Eiq "'title'|'post_title'|'post_content'|'post_author'|'user_email'|'billing_|'shipping_|first_name|last_name|display_name" "$evidence"; then
+            echo 'Migration evidence must not export campaign content or PII fields.' >&2
+            exit 1
+          fi
+
+          php -l "$evidence"
+          php -l "$admin"
+          php -l "$bootstrap"
