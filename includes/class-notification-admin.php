@@ -62,8 +62,10 @@ final class Notification_Admin {
 			</form>
 
 			<h2><?php esc_html_e( 'Recent deliveries', 'crowdfunding-wordpress' ); ?></h2>
+			<p class="description"><?php echo esc_html( sprintf( __( 'Failed email deliveries can be retried up to %d total attempts. Processing rows are never retried automatically because an interrupted external send can have an ambiguous outcome.', 'crowdfunding-wordpress' ), Notification_Delivery_Repository::max_attempts() ) ); ?></p>
 			<nav aria-label="<?php esc_attr_e( 'Filter notification deliveries', 'crowdfunding-wordpress' ); ?>">
 				<a href="<?php echo esc_url( $this->page_url() ); ?>"<?php echo '' === $status ? ' aria-current="page"' : ''; ?>><?php esc_html_e( 'All', 'crowdfunding-wordpress' ); ?></a> |
+				<a href="<?php echo esc_url( $this->page_url( Notification_Delivery_Repository::STATUS_PROCESSING ) ); ?>"<?php echo Notification_Delivery_Repository::STATUS_PROCESSING === $status ? ' aria-current="page"' : ''; ?>><?php esc_html_e( 'Processing', 'crowdfunding-wordpress' ); ?></a> |
 				<a href="<?php echo esc_url( $this->page_url( Notification_Delivery_Repository::STATUS_SENT ) ); ?>"<?php echo Notification_Delivery_Repository::STATUS_SENT === $status ? ' aria-current="page"' : ''; ?>><?php esc_html_e( 'Sent', 'crowdfunding-wordpress' ); ?></a> |
 				<a href="<?php echo esc_url( $this->page_url( Notification_Delivery_Repository::STATUS_FAILED ) ); ?>"<?php echo Notification_Delivery_Repository::STATUS_FAILED === $status ? ' aria-current="page"' : ''; ?>><?php esc_html_e( 'Failed', 'crowdfunding-wordpress' ); ?></a>
 			</nav>
@@ -89,7 +91,7 @@ final class Notification_Admin {
 						<td><code><?php echo esc_html( (string) ( $row['message_key'] ?? '' ) ); ?></code></td>
 						<td><?php echo esc_html( (string) ( $row['channel'] ?? '' ) ); ?></td>
 						<td><?php echo esc_html( (string) ( $row['recipient_type'] ?? '' ) . ' #' . absint( $row['recipient_id'] ?? 0 ) ); ?></td>
-						<td><?php echo esc_html( (string) ( $row['status'] ?? '' ) ); ?></td>
+						<td><?php $this->render_status( $row ); ?></td>
 						<td><?php echo esc_html( (string) absint( $row['attempt_count'] ?? 0 ) ); ?></td>
 						<td><?php echo esc_html( (string) ( $row['last_error'] ?? '' ) ); ?></td>
 						<td><?php echo esc_html( (string) ( $row['updated_at'] ?? '' ) ); ?> UTC</td>
@@ -121,10 +123,24 @@ final class Notification_Admin {
 	}
 
 	/** @param array<string,mixed> $row */
+	private function render_status( array $row ): void {
+		$status = (string) ( $row['status'] ?? '' );
+		echo esc_html( $status );
+		if ( $this->repository->is_stale_processing( $row ) ) {
+			echo '<br><span class="description">' . esc_html__( 'Stale processing — review manually before any external resend.', 'crowdfunding-wordpress' ) . '</span>';
+		}
+	}
+
+	/** @param array<string,mixed> $row */
 	private function render_retry( array $row ): void {
 		$id = absint( $row['id'] ?? 0 );
 		if ( Notification_Delivery_Repository::STATUS_FAILED !== (string) ( $row['status'] ?? '' ) || 'email' !== (string) ( $row['channel'] ?? '' ) || $id <= 0 ) {
 			echo '&mdash;';
+			return;
+		}
+
+		if ( ! $this->repository->can_retry( $row ) ) {
+			echo '<span class="description">' . esc_html__( 'Retry limit reached', 'crowdfunding-wordpress' ) . '</span>';
 			return;
 		}
 		?>
