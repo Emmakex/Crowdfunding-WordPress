@@ -16,8 +16,54 @@ final class Notification_Delivery_Repository {
 	public const STATUS_SENT       = 'sent';
 	public const STATUS_FAILED     = 'failed';
 
+	private const DEFAULT_MAX_ATTEMPTS             = 5;
+	private const DEFAULT_PROCESSING_STALE_SECONDS = 900;
+
 	/**
-	 * Claim one intent/channel for delivery. Sent or currently-processing rows fail closed.
+	 * Maximum confirmed delivery attempts for one intent/channel.
+	 */
+	public static function max_attempts(): int {
+		$value = (int) apply_filters( 'cfwp_notification_delivery_max_attempts', self::DEFAULT_MAX_ATTEMPTS );
+		return max( 1, min( 20, $value ) );
+	}
+
+	/**
+	 * Age after which a processing row should be reviewed manually.
+	 *
+	 * Processing rows are never reclaimed automatically because an interrupted
+	 * external send can have an ambiguous outcome.
+	 */
+	public static function processing_stale_seconds(): int {
+		$value = (int) apply_filters( 'cfwp_notification_processing_stale_seconds', self::DEFAULT_PROCESSING_STALE_SECONDS );
+		return max( 60, min( DAY_IN_SECONDS, $value ) );
+	}
+
+	/** @param array<string,mixed> $row */
+	public function can_retry( array $row ): bool {
+		return self::STATUS_FAILED === (string) ( $row['status'] ?? '' )
+			&& absint( $row['attempt_count'] ?? 0 ) < self::max_attempts();
+	}
+
+	/** @param array<string,mixed> $row */
+	public function is_stale_processing( array $row ): bool {
+		if ( self::STATUS_PROCESSING !== (string) ( $row['status'] ?? '' ) ) {
+			return false;
+		}
+
+		$updated_at = isset( $row['updated_at'] ) ? trim( (string) $row['updated_at'] ) : '';
+		$timestamp  = '' !== $updated_at ? strtotime( $updated_at . ' UTC' ) : false;
+		if ( false === $timestamp ) {
+			return false;
+		}
+
+		return ( time() - $timestamp ) >= self::processing_stale_seconds();
+	}
+
+	/**
+	 * Claim one intent/channel for delivery.
+	 *
+	 * Sent and processing rows fail closed. Failed rows may be retried only while
+	 * below the bounded attempt limit. Unknown states are never reclaimed.
 	 */
 	public function claim( string $intent_key, string $message_key, string $channel, string $recipient_type, int $recipient_id ): int {
 		global $wpdb;
@@ -42,8 +88,12 @@ final class Notification_Delivery_Repository {
 			);
 
 			if ( is_array( $row ) ) {
-				$status = (string) ( $row['status'] ?? '' );
-				if ( self::STATUS_SENT === $status || self::STATUS_PROCESSING === $status ) {
+				$status        = (string) ( $row['status'] ?? '' );
+				$attempt_count = absint( $row['attempt_count'] ?? 0 );
+				if (
+					self::STATUS_FAILED !== $status ||
+					$attempt_count >= self::max_attempts()
+				) {
 					$wpdb->query( 'ROLLBACK' );
 					return 0;
 				}
@@ -54,7 +104,7 @@ final class Notification_Delivery_Repository {
 					array(
 						'message_key'   => $message_key,
 						'status'        => self::STATUS_PROCESSING,
-						'attempt_count' => absint( $row['attempt_count'] ?? 0 ) + 1,
+						'attempt_count' => $attempt_count + 1,
 						'last_error'    => '',
 						'updated_at'    => $now,
 					),
@@ -103,7 +153,7 @@ final class Notification_Delivery_Repository {
 	public function mark_sent( int $id ): bool {
 		global $wpdb;
 		$now = current_time( 'mysql', true );
-		return false !== $wpdb->update(
+		return 1 === $wpdb->update(
 			Notification_Deliveries::table_name(),
 			array( 'status' => self::STATUS_SENT, 'last_error' => '', 'sent_at' => $now, 'updated_at' => $now ),
 			array( 'id' => absint( $id ), 'status' => self::STATUS_PROCESSING ),
@@ -114,7 +164,7 @@ final class Notification_Delivery_Repository {
 
 	public function mark_failed( int $id, string $error ): bool {
 		global $wpdb;
-		return false !== $wpdb->update(
+		return 1 === $wpdb->update(
 			Notification_Deliveries::table_name(),
 			array(
 				'status'     => self::STATUS_FAILED,
