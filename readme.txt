@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.9.0
+Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,10 +34,10 @@ The plugin keeps crowdfunding Core authority separate from WordPress editorial s
 * Promoter portfolio statistics grouped safely by currency.
 * Authenticated contributor dashboard.
 * Channel-neutral notification events, recipient resolution and delivery intents.
-* Idempotent WordPress email delivery ledger.
+* Idempotent WordPress email delivery ledger with bounded retries.
 * Notification delivery enable/disable control.
-* Administrative delivery history with sent/failed filtering.
-* Safe manual retry for failed email deliveries.
+* Administrative delivery history with processing/sent/failed filtering.
+* Safe manual retry for confirmed failed email deliveries.
 * Recipient email addresses are resolved only at delivery time and are not stored in the notification ledger.
 * Translation-ready strings with the `crowdfunding-wordpress` text domain.
 * Accessible status/error announcements, keyboard focus states, labelled controls and semantic administrative tables.
@@ -63,7 +63,7 @@ The plugin keeps crowdfunding Core authority separate from WordPress editorial s
 14. Publish `[crowdfunding_contribution_dashboard]` for account-linked contribution history.
 15. Publish `[crowdfunding_campaign_statistics]`, `[crowdfunding_fulfillment_health]` and `[crowdfunding_promoter_portfolio]` as required.
 16. Administrators can use **Crowdfunding → Moderation** for Core moderation decisions.
-17. Administrators can use **Crowdfunding → Notifications** to enable/disable email delivery, inspect recent deliveries and retry failed email notifications.
+17. Administrators can use **Crowdfunding → Notifications** to enable/disable email delivery, inspect recent deliveries and retry confirmed failed email notifications.
 
 == Moderation model ==
 
@@ -105,11 +105,15 @@ Version 0.7.0 introduced the notification and reporting foundation without makin
 
 Committed Core events are normalized into the channel-neutral `cfwp_notification_event` contract. Recipient resolution produces stable WordPress-user references rather than email addresses or other delivery destinations. Delivery intents add stable `intent_key` and semantic `message_key` values for downstream idempotency.
 
+Version 1.0.0 preserves canonical event names exactly, including underscore-bearing events such as `reward_claim.created` and `reward_fulfillment.status_changed`, so their semantic message keys remain aligned with the renderer.
+
 The WordPress email adapter resolves the current WordPress account email only at send time. Email addresses are never persisted in the notification delivery ledger. Guest contributions with `user_id = 0` are not heuristically attached to an email address, billing record or WooCommerce customer.
 
 The delivery ledger uses the unique pair `intent_key + channel` as its idempotency authority. It records recipient reference, semantic message key, status, attempt count, last error and timestamps. It is a delivery-attempt ledger only and never becomes a second crowdfunding domain-event authority.
 
-Administrators can open **Crowdfunding → Notifications** to enable or disable WordPress email delivery, view recent sent/failed deliveries and explicitly retry failed email deliveries. Retry is nonce-protected, requires `manage_options`, reuses the original intent identity and resolves the destination again at retry time.
+Confirmed failed email deliveries have a bounded retry count. Processing rows are visible to administrators and are never automatically reclaimed because an interrupted external send can have an ambiguous outcome. A delivery is only reported as successful after the ledger has also confirmed the `sent` transition.
+
+Administrators can open **Crowdfunding → Notifications** to enable or disable WordPress email delivery, filter processing/sent/failed deliveries and explicitly retry eligible failed email deliveries. Retry is nonce-protected, requires `manage_options`, reuses the original intent identity and resolves the destination again at retry time.
 
 Notification failure is isolated from crowdfunding transactions. A mail failure cannot roll back a contribution, moderation decision, reward claim or fulfillment transition.
 
@@ -159,7 +163,11 @@ No. The email address is resolved from the current WordPress user only when an e
 
 = Can failed notification emails be retried? =
 
-Yes. Administrators can retry failed email deliveries from **Crowdfunding → Notifications**. Sent deliveries cannot be retried through that action, preserving idempotency.
+Yes. Administrators can retry eligible failed email deliveries from **Crowdfunding → Notifications**. Retries are bounded, and sent or processing deliveries are not automatically retried.
+
+= What does a processing notification mean? =
+
+It means a delivery attempt was claimed but has not reached a confirmed terminal ledger state. Old processing rows are surfaced for manual review and are not automatically resent because the external delivery outcome may be ambiguous.
 
 = Can guest contributions receive email notifications? =
 
@@ -170,6 +178,17 @@ The Core notification resolver intentionally does not infer guest identity from 
 Crowdfunding WordPress preserves its operational data. Uninstall does not silently delete campaigns, contributions, rewards, fulfillment, moderation or notification records.
 
 == Changelog ==
+
+= 1.0.0 =
+* Published the first commercial-ready Crowdfunding WordPress release.
+* Fixed canonical notification event-name preservation for reward claim and reward fulfillment events.
+* Added behavioral regression coverage for underscore-bearing notification event names and message keys.
+* Added bounded retry attempts for confirmed failed email deliveries.
+* Added Processing filtering and stale-processing visibility for administrator review.
+* Kept processing rows fail-closed instead of automatically resending potentially ambiguous external deliveries.
+* Made notification success contingent on successfully recording the ledger `sent` transition.
+* Added an explicit ledger-failure hook for delivery bookkeeping failures without leaking recipient PII.
+* Preserved the clean generic Core, non-destructive uninstall policy, read-only Getting Started experience and exact-head distribution packaging.
 
 = 0.9.0 =
 * Added a read-only Crowdfunding → Getting Started screen and Plugins-screen shortcut for first-use guidance.
@@ -224,6 +243,9 @@ Crowdfunding WordPress preserves its operational data. Uninstall does not silent
 * Added independent Core campaign moderation workflow.
 
 == Upgrade Notice ==
+
+= 1.0.0 =
+Finalizes the commercial release and hardens notification correctness and delivery bookkeeping. Existing Core crowdfunding schemas remain compatible; failed notification retries are now bounded and processing deliveries are surfaced for manual review rather than automatically resent.
 
 = 0.9.0 =
 Adds first-use diagnostics, clean distribution packaging and an explicit data-preserving uninstall policy. No crowdfunding domain authority or schema changes are introduced by this release.

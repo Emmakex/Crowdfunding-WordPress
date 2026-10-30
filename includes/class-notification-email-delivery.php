@@ -37,7 +37,11 @@ final class Notification_Email_Delivery {
 
 		$repository = new Notification_Delivery_Repository();
 		$row        = $repository->find( $delivery_id );
-		if ( ! is_array( $row ) || Notification_Delivery_Repository::STATUS_FAILED !== (string) ( $row['status'] ?? '' ) || 'email' !== (string) ( $row['channel'] ?? '' ) ) {
+		if (
+			! is_array( $row ) ||
+			'email' !== (string) ( $row['channel'] ?? '' ) ||
+			! $repository->can_retry( $row )
+		) {
 			return false;
 		}
 
@@ -89,13 +93,20 @@ final class Notification_Email_Delivery {
 		}
 
 		if ( $sent ) {
-			$repository->mark_sent( $delivery_id );
-			do_action( 'cfwp_notification_delivery_succeeded', $delivery_id, $intent_key, 'email', $type, $user_id );
-			return true;
+			if ( $repository->mark_sent( $delivery_id ) ) {
+				do_action( 'cfwp_notification_delivery_succeeded', $delivery_id, $intent_key, 'email', $type, $user_id );
+				return true;
+			}
+
+			do_action( 'cfwp_notification_delivery_ledger_failed', $delivery_id, $intent_key, 'email', $type, $user_id, 'mark_sent' );
+			return false;
 		}
 
-		$repository->mark_failed( $delivery_id, $error );
-		do_action( 'cfwp_notification_delivery_failed', $delivery_id, $intent_key, 'email', $type, $user_id );
+		if ( $repository->mark_failed( $delivery_id, $error ) ) {
+			do_action( 'cfwp_notification_delivery_failed', $delivery_id, $intent_key, 'email', $type, $user_id );
+		} else {
+			do_action( 'cfwp_notification_delivery_ledger_failed', $delivery_id, $intent_key, 'email', $type, $user_id, 'mark_failed' );
+		}
 		return false;
 	}
 }
