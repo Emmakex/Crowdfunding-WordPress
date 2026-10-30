@@ -24,7 +24,7 @@ final class Legacy_Migration_Evidence {
 		$inspector = new Legacy_Migration_Inspector();
 		$plan      = new Legacy_Migration_Plan();
 		$report    = $inspector->inspect();
-		$preview   = $plan->build();
+		$preview   = $plan->preview();
 
 		return array(
 			'schema_version' => self::SCHEMA_VERSION,
@@ -72,8 +72,8 @@ final class Legacy_Migration_Evidence {
 	}
 
 	/**
-	 * Strip content, authorship and other potentially identifying source values.
-	 * The preview evidence only keeps structural identifiers and classifications.
+	 * Strip content, titles, authorship and other potentially identifying source
+	 * values. Evidence keeps only structural identifiers and classifications.
 	 *
 	 * @param array<string,mixed> $preview
 	 * @return array<string,mixed>
@@ -92,19 +92,18 @@ final class Legacy_Migration_Evidence {
 				'source_status' => isset( $item['source_status'] ) ? sanitize_key( (string) $item['source_status'] ) : '',
 				'target_status' => isset( $item['target_status'] ) ? sanitize_key( (string) $item['target_status'] ) : '',
 				'target_slug'   => isset( $item['target_slug'] ) ? sanitize_title( (string) $item['target_slug'] ) : '',
-				'result'        => isset( $item['result'] ) ? sanitize_key( (string) $item['result'] ) : '',
+				'status'        => isset( $item['status'] ) ? sanitize_key( (string) $item['status'] ) : Legacy_Migration_Plan::STATUS_BLOCKED,
 				'blockers'      => isset( $item['blockers'] ) && is_array( $item['blockers'] ) ? array_values( array_map( 'sanitize_key', $item['blockers'] ) ) : array(),
-				'conflicts'     => isset( $item['conflicts'] ) && is_array( $item['conflicts'] ) ? array_values( array_map( 'sanitize_key', $item['conflicts'] ) ) : array(),
 				'preserved'     => isset( $item['preserved'] ) && is_array( $item['preserved'] ) ? array_values( array_map( 'sanitize_key', $item['preserved'] ) ) : array(),
 			);
 		}
 
 		return array(
 			'summary' => array(
-				'total'      => isset( $summary['total'] ) ? (int) $summary['total'] : count( $output ),
-				'migratable' => isset( $summary['migratable'] ) ? (int) $summary['migratable'] : 0,
-				'blocked'    => isset( $summary['blocked'] ) ? (int) $summary['blocked'] : 0,
-				'conflict'   => isset( $summary['conflict'] ) ? (int) $summary['conflict'] : 0,
+				'migratable' => isset( $summary[ Legacy_Migration_Plan::STATUS_MIGRATABLE ] ) ? (int) $summary[ Legacy_Migration_Plan::STATUS_MIGRATABLE ] : 0,
+				'blocked'    => isset( $summary[ Legacy_Migration_Plan::STATUS_BLOCKED ] ) ? (int) $summary[ Legacy_Migration_Plan::STATUS_BLOCKED ] : 0,
+				'conflict'   => isset( $summary[ Legacy_Migration_Plan::STATUS_CONFLICT ] ) ? (int) $summary[ Legacy_Migration_Plan::STATUS_CONFLICT ] : 0,
+				'total'      => count( $output ),
 			),
 			'items' => $output,
 		);
