@@ -1,0 +1,78 @@
+name: Release Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'crowdfunding-wordpress.php'
+      - 'readme.txt'
+      - 'uninstall.php'
+      - 'includes/class-getting-started-admin.php'
+      - '.gitattributes'
+      - '.github/workflows/distribution-readiness.yml'
+      - '.github/workflows/release-version.yml'
+      - '.github/workflows/release-acceptance.yml'
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  release-acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify public release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          plugin='crowdfunding-wordpress.php'
+          readme='readme.txt'
+
+          header_version="$(sed -n 's/^ \* Version:[[:space:]]*//p' "$plugin" | head -n1)"
+          constant_version="$(sed -n "s/^define( 'CFWP_VERSION', '\([^']*\)' );$/\1/p" "$plugin" | head -n1)"
+          stable_tag="$(sed -n 's/^Stable tag:[[:space:]]*//p' "$readme" | head -n1)"
+
+          [[ "$header_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$header_version" = "$constant_version"
+          test "$header_version" = "$stable_tag"
+          grep -Fq "= ${header_version} =" "$readme"
+          awk '/^== Upgrade Notice ==/{flag=1;next} flag{print}' "$readme" | grep -Fq "= ${header_version} ="
+
+      - name: Verify non-destructive uninstall contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='uninstall.php'
+
+          grep -Fq "WP_UNINSTALL_PLUGIN" "$file"
+          grep -Fq 'intentionally preserves campaign, contribution,' "$file"
+          grep -Fq 'uninstall therefore performs no destructive cleanup' "$file"
+
+          if grep -Eiq 'DROP[[:space:]]+TABLE|TRUNCATE[[:space:]]+TABLE|wp_delete_post|wp_delete_user|delete_option|delete_site_option|delete_post_meta|delete_metadata|remove_role|\$wpdb->(delete|query)[[:space:]]*\(' "$file"; then
+            echo 'Uninstall must remain non-destructive by default.' >&2
+            exit 1
+          fi
+
+      - name: Verify first-use and package contracts remain present
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          grep -Fq 'final class Getting_Started_Admin' includes/class-getting-started-admin.php
+          grep -Fq 'Crowdfunding → Getting Started' readme.txt
+          grep -Fq 'WooCommerce is optional when a site only needs campaign publishing and management.' readme.txt
+          grep -Fq '/.github export-ignore' .gitattributes
+          grep -Fq '/README.md export-ignore' .gitattributes
+          grep -Fq 'Build clean installable ZIP' .github/workflows/distribution-readiness.yml
+          grep -Fq 'Upload installable package' .github/workflows/distribution-readiness.yml
+
+      - name: Lint release entry points
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l crowdfunding-wordpress.php
+          php -l uninstall.php
+          php -l includes/class-getting-started-admin.php
