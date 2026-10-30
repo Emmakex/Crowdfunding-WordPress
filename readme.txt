@@ -3,7 +3,7 @@ Contributors: kairoseth
 Tags: crowdfunding, fundraising, woocommerce, campaigns, rewards
 Requires at least: 6.4
 Requires PHP: 8.0
-Stable tag: 0.8.0
+Stable tag: 0.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,16 +41,18 @@ The plugin keeps crowdfunding Core authority separate from WordPress editorial s
 * Recipient email addresses are resolved only at delivery time and are not stored in the notification ledger.
 * Translation-ready strings with the `crowdfunding-wordpress` text domain.
 * Accessible status/error announcements, keyboard focus states, labelled controls and semantic administrative tables.
+* Read-only Getting Started diagnostics for first-time setup.
+* Clean installable ZIP packaging validated from the exact release head.
 * Versioned database upgrades.
 
 == Installation ==
 
 1. Upload the plugin folder to `/wp-content/plugins/` or install the ZIP from WordPress.
 2. Activate **Crowdfunding WordPress**.
-3. Install and configure WooCommerce if the site will collect contributions.
-4. Open **Crowdfunding** in WordPress administration.
+3. Open **Crowdfunding → Getting Started** to review Core readiness, WooCommerce availability, permalink recommendations, public-registration status and the essential shortcodes.
+4. Install and configure WooCommerce only if the site will collect contributions through checkout.
 5. Create or edit a campaign and configure its funding goal, currency and deadline.
-6. Ensure the campaign currency matches the WooCommerce store currency used for checkout.
+6. If WooCommerce checkout is used, ensure the campaign currency matches the WooCommerce store currency.
 7. Publish `[crowdfunding_campaigns]` for the campaign catalogue.
 8. Use `[crowdfunding_campaign id="123"]` to embed one published campaign.
 9. Use `[crowdfunding_progress id="123"]`, `[crowdfunding_rewards id="123"]` and `[crowdfunding_contribute id="123"]` when those blocks are required independently.
@@ -121,6 +123,20 @@ The notification administration surface uses semantic navigation for filters, `a
 
 User-facing strings continue to use the `crowdfunding-wordpress` text domain, which is loaded from the plugin `languages` directory for distributable installations.
 
+== Product setup and distribution ==
+
+Version 0.9.0 adds a read-only **Crowdfunding → Getting Started** screen and a matching Plugins-screen action link. The screen reports installation readiness without creating pages, changing WordPress options or modifying WooCommerce configuration.
+
+WooCommerce is optional when a site only needs campaign publishing and management. It is required when contributions will be collected through the supported checkout flow.
+
+Release packaging is generated from the exact certified Git head. The installable ZIP contains only runtime plugin files and excludes repository CI, development documentation and any external migration/compatibility layer.
+
+== Data retention and uninstall ==
+
+Uninstalling Crowdfunding WordPress intentionally preserves campaign, contribution, reward, fulfillment, moderation and notification data. Removing operational crowdfunding data must be an explicit site-administrator decision; the uninstall handler performs no destructive cleanup.
+
+Internal version upgrades may run bounded, versioned reconciliation/backfill routines for Crowdfunding WordPress's own historical data contracts. The plugin does not import or migrate external crowdfunding installations.
+
 == Privacy ==
 
 Crowdfunding WordPress avoids duplicating commerce/customer data into Core crowdfunding records. Notification delivery records do not persist email addresses, names, billing details or shipping details.
@@ -131,7 +147,7 @@ Sites remain responsible for configuring their WordPress privacy policy, WooComm
 
 = Does the plugin require WooCommerce? =
 
-WooCommerce is the supported commerce/payment layer for collecting contributions. Crowdfunding Core records remain separated from WooCommerce order/customer authority.
+No for campaign publishing and management. WooCommerce is required when the site will collect contributions through the supported checkout/payment flow. Crowdfunding Core records remain separated from WooCommerce order/customer authority.
 
 = Does approving a campaign publish it automatically? =
 
@@ -149,7 +165,21 @@ Yes. Administrators can retry failed email deliveries from **Crowdfunding → No
 
 The Core notification resolver intentionally does not infer guest identity from billing, shipping or customer email data. Guest-channel support can be added later through an explicit commerce/privacy adapter rather than by leaking those details into Core events.
 
+= What happens to crowdfunding data when the plugin is uninstalled? =
+
+Crowdfunding WordPress preserves its operational data. Uninstall does not silently delete campaigns, contributions, rewards, fulfillment, moderation or notification records.
+
 == Changelog ==
+
+= 0.9.0 =
+* Added a read-only Crowdfunding → Getting Started screen and Plugins-screen shortcut for first-use guidance.
+* Added Core, WooCommerce, permalink and public-registration readiness diagnostics without storing setup state.
+* Clarified that WooCommerce is optional for campaign publishing and required for checkout-based contributions.
+* Added clean distribution packaging from the exact certified Git head.
+* Added package validation that excludes CI/development files and rejects external migration/reference-implementation coupling.
+* Added packaged-PHP linting and installable ZIP artifacts in CI.
+* Made data-preserving uninstall behavior an explicit stable product policy.
+* Added release-acceptance checks for public metadata, onboarding, packaging and non-destructive uninstall behavior.
 
 = 0.8.0 =
 * Added a regression contract for accessibility and internationalization across public and administrative surfaces.
@@ -194,6 +224,9 @@ The Core notification resolver intentionally does not infer guest identity from 
 * Added independent Core campaign moderation workflow.
 
 == Upgrade Notice ==
+
+= 0.9.0 =
+Adds first-use diagnostics, clean distribution packaging and an explicit data-preserving uninstall policy. No crowdfunding domain authority or schema changes are introduced by this release.
 
 = 0.8.0 =
 Adds accessibility and internationalization hardening without changing crowdfunding domain data or authority. Existing 0.7.x notification delivery data remains compatible.
