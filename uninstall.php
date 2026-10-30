@@ -2,8 +2,10 @@
 /**
  * Uninstall handler.
  *
- * Crowdfunding data is intentionally preserved on uninstall in 0.1.x.
- * Destructive cleanup will only be introduced behind an explicit setting.
+ * Crowdfunding WordPress intentionally preserves campaign, contribution,
+ * reward, fulfillment, moderation and notification data when the plugin is
+ * uninstalled. Removing operational data must always be an explicit site
+ * administrator decision; uninstall therefore performs no destructive cleanup.
  *
  * @package CrowdfundingWordPress
  */
