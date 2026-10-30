@@ -1,0 +1,68 @@
+name: Distribution Readiness
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build clean installable ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive --format=zip --prefix=crowdfunding-wordpress/ -o crowdfunding-wordpress.zip HEAD
+          unzip -l crowdfunding-wordpress.zip > package-manifest.txt
+          cat package-manifest.txt
+
+      - name: Verify package contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest='package-manifest.txt'
+
+          for required in \
+            'crowdfunding-wordpress/crowdfunding-wordpress.php' \
+            'crowdfunding-wordpress/readme.txt' \
+            'crowdfunding-wordpress/uninstall.php' \
+            'crowdfunding-wordpress/includes/class-plugin.php' \
+            'crowdfunding-wordpress/includes/class-getting-started-admin.php' \
+            'crowdfunding-wordpress/assets/css/public.css'; do
+            grep -Fq "$required" "$manifest"
+          done
+
+          for forbidden in \
+            'crowdfunding-wordpress/.github/' \
+            'crowdfunding-wordpress/README.md' \
+            'crowdfunding-wordpress/.gitattributes' \
+            'crowdfunding-wordpress/includes/compat/' \
+            'crowdfunding-wordpress/.git/'; do
+            if grep -Fq "$forbidden" "$manifest"; then
+              echo "Forbidden distribution path found: $forbidden" >&2
+              exit 1
+            fi
+          done
+
+      - name: Lint packaged PHP
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf package
+          mkdir package
+          unzip -q crowdfunding-wordpress.zip -d package
+          while IFS= read -r -d '' file; do
+            php -l "$file"
+          done < <(find package/crowdfunding-wordpress -type f -name '*.php' -print0)
+
+      - name: Upload installable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: crowdfunding-wordpress
+          path: crowdfunding-wordpress.zip
+          if-no-files-found: error
