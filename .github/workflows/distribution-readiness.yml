@@ -49,16 +49,38 @@ jobs:
             fi
           done
 
-      - name: Lint packaged PHP
+      - name: Verify onboarding remains read-only and generic
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='includes/class-getting-started-admin.php'
+
+          grep -Fq 'final class Getting_Started_Admin' "$file"
+          grep -Fq "add_submenu_page(" "$file"
+          grep -Fq "plugin_action_links_" "$file"
+          grep -Fq "Optional for campaign publishing. Required when the site will collect contributions through checkout." "$file"
+
+          if grep -Eiq 'update_option|add_option|delete_option|wp_insert_post|wp_update_post|update_post_meta|add_post_meta|delete_post_meta|\$wpdb->(insert|update|delete|replace)' "$file"; then
+            echo 'Getting Started must remain read-only.' >&2
+            exit 1
+          fi
+
+      - name: Lint and inspect packaged product
         shell: bash
         run: |
           set -euo pipefail
           rm -rf package
           mkdir package
           unzip -q crowdfunding-wordpress.zip -d package
+
           while IFS= read -r -d '' file; do
             php -l "$file"
           done < <(find package/crowdfunding-wordpress -type f -name '*.php' -print0)
+
+          if grep -RInE --include='*.php' --include='*.txt' 'CulturalFunding|Financial Rocks|includes/compat' package/crowdfunding-wordpress; then
+            echo 'External implementation or migration coupling leaked into the distribution.' >&2
+            exit 1
+          fi
 
       - name: Upload installable package
         uses: actions/upload-artifact@v4
