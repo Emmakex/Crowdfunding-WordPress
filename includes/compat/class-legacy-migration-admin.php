@@ -13,17 +13,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class Legacy_Migration_Admin {
 	private const PAGE_SLUG = 'cfwp-legacy-migration';
+	private const EXPORT_ACTION = 'cfwp_legacy_migration_evidence';
+	private const EXPORT_NONCE_ACTION = 'cfwp_legacy_migration_evidence_export';
 
 	private Legacy_Migration_Inspector $inspector;
 	private Legacy_Migration_Plan $plan;
+	private Legacy_Migration_Evidence $evidence;
 
 	public function __construct() {
 		$this->inspector = new Legacy_Migration_Inspector();
 		$this->plan      = new Legacy_Migration_Plan();
+		$this->evidence  = new Legacy_Migration_Evidence();
 	}
 
 	public function register(): void {
 		add_action( 'admin_menu', array( $this, 'add_page' ) );
+		add_action( 'admin_post_' . self::EXPORT_ACTION, array( $this, 'export_evidence' ) );
 	}
 
 	public function add_page(): void {
@@ -35,6 +40,27 @@ final class Legacy_Migration_Admin {
 			self::PAGE_SLUG,
 			array( $this, 'render' )
 		);
+	}
+
+	public function export_evidence(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to export migration evidence.', 'crowdfunding-wordpress' ) );
+		}
+
+		check_admin_referer( self::EXPORT_NONCE_ACTION );
+
+		$payload = $this->evidence->build();
+		$json    = wp_json_encode( $payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		if ( ! is_string( $json ) ) {
+			wp_die( esc_html__( 'Migration evidence could not be encoded.', 'crowdfunding-wordpress' ) );
+		}
+
+		nocache_headers();
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="crowdfunding-migration-evidence-' . gmdate( 'Ymd-His' ) . '.json"' );
+		header( 'X-Content-Type-Options: nosniff' );
+		echo $json; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON response.
+		exit;
 	}
 
 	public function render(): void {
@@ -54,6 +80,13 @@ final class Legacy_Migration_Admin {
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Crowdfunding migration inspection', 'crowdfunding-wordpress' ); ?></h1>
 			<p><?php esc_html_e( 'This is a read-only dry run for the legacy Cultural Funding installation. It inventories source data, previews campaign-by-campaign compatibility and does not create, update or delete crowdfunding data.', 'crowdfunding-wordpress' ); ?></p>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin: 16px 0;">
+				<input type="hidden" name="action" value="<?php echo esc_attr( self::EXPORT_ACTION ); ?>" />
+				<?php wp_nonce_field( self::EXPORT_NONCE_ACTION ); ?>
+				<?php submit_button( __( 'Export migration evidence JSON', 'crowdfunding-wordpress' ), 'secondary', 'submit', false ); ?>
+				<span class="description" style="margin-left:8px;"><?php esc_html_e( 'Exports structural migration evidence only; campaign content, titles and authors are excluded.', 'crowdfunding-wordpress' ); ?></span>
+			</form>
 
 			<h2><?php esc_html_e( 'Source inventory', 'crowdfunding-wordpress' ); ?></h2>
 			<table class="widefat striped" style="max-width: 900px;">
