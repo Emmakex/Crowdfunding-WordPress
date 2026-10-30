@@ -4,177 +4,66 @@ Open-source crowdfunding plugin for WordPress, built by Kairoseth.
 
 ## Product direction
 
-Crowdfunding WordPress is a generic product for creating and managing crowdfunding campaigns, promoters, contributions and rewards inside WordPress. The Core remains independent from any single client, vertical, brand, grant programme, payment gateway or reference implementation.
+Crowdfunding WordPress is a clean, generic product for creating and managing crowdfunding campaigns, promoters, contributions and rewards directly in WordPress.
 
-CulturalFunding is a reference implementation and a source of validated product requirements. It is **not** an architectural authority for this repository.
+The plugin is not tied to any client, vertical, grant programme, previous crowdfunding implementation or migration source. WooCommerce is used only as the commerce and payment interoperability layer; Crowdfunding WordPress owns its campaign, moderation, contribution, reward, entitlement, fulfillment and reporting domains.
 
 ## Commercial positioning
 
 **Product name:** Crowdfunding WordPress  
 **Manufacturer:** Kairoseth  
-**Primary promise:** Create and manage crowdfunding campaigns, contributions and rewards directly in WordPress, using WooCommerce as the commerce and payment layer.
+**Primary promise:** Create and manage crowdfunding campaigns, contributions and rewards directly in WordPress, using WooCommerce for checkout and payments.
 
-## Current architecture
+## Core architecture
 
-`Campaign → independent Core moderation state + immutable moderator decisions → moderation operations UI / promoter resubmission → moderation-aware campaign editing lock → publication eligibility gate → WordPress editorial publication → reward definition/selection → WooCommerce cart/order marker → confirmed Core contribution → refund adjustments → net entitlement reconciliation → idempotent Core reward claim → derived public availability → synchronized fulfillment lifecycle → operational fulfillment management → read-only fulfillment audit/health → account/campaign/portfolio dashboards`
+`Campaign → Core moderation → WordPress editorial publication → reward selection → WooCommerce checkout → Core contribution → refund adjustments → reward entitlement → fulfillment → dashboards and reporting`
 
-Campaigns, campaign moderation, rewards, contributions, financial adjustments, reward claims and reward fulfillment are Core domain concepts. WordPress `post_status` remains the editorial publication/visibility mechanism and is not the moderation authority. WooCommerce owns checkout, orders, refunds and payment gateway interoperability. Order-item metadata transports explicit reward selection evidence, but moderation, entitlement, availability, fulfillment, reconciliation health, account dashboards, campaign statistics and promoter portfolio statistics remain separate Core authorities.
+### Authority boundaries
 
-As of **0.6.6**, the repository includes:
+- WordPress `post_status` owns editorial publication and visibility.
+- Core moderation owns review state and moderator decisions.
+- WooCommerce owns checkout, orders, refunds and payment gateways.
+- Core contribution records own crowdfunding accounting.
+- Core reward claims own entitlement.
+- Core fulfillment owns delivery workflow.
+- Reporting and notifications consume committed Core facts; they do not become domain authorities.
 
-- generic campaign domain and public campaign views;
-- independent Core campaign moderation state with `submitted`, `in_review`, `approved` and `rejected` states;
-- a moderation transition graph that does not publish or otherwise mutate WordPress editorial status;
-- a dedicated `moderate_cfwp_campaigns` authority granted to administrators and explicitly denied to promoters;
-- new frontend campaign submissions initialized as Core `submitted` while remaining WordPress `pending` editorial content;
-- bounded, versioned and idempotent reconciliation for pre-0.6.0 campaigns that still lack moderation metadata;
-- legacy WordPress `pending` campaigns classified as Core `submitted` without changing editorial status;
-- legacy WordPress `publish` campaigns grandfathered as Core `approved` for compatibility, without claiming evidence of a historical moderation decision;
-- explicit protection against backfilling draft/private/trash campaigns or overwriting any existing moderation metadata;
-- transactional moderator decision authority for `submitted → in_review/approved/rejected` and `in_review → approved/rejected`;
-- immutable campaign-moderation decision events with moderator user ID, source/reference idempotency and chronological reads;
-- atomic Core moderation state + audit-event commits with rollback on failure;
-- native WordPress moderation queue for `submitted` and `in_review` campaigns;
-- campaign moderation detail with current Core/editorial state, repository-governed actions and immutable decision history;
-- per-form UUID idempotency references and nonce/capability protection for every administrative decision request;
-- explicit promoter-owned `rejected → submitted` resubmission for still-pending campaigns;
-- promoter resubmission reauthorization by session, edit capability, ownership, editable post authority, editorial `pending` state and current Core `rejected` state;
-- editorial saving and moderation resubmission kept as separate actions;
-- moderation-aware campaign content locking for non-moderators while Core state is `submitted`, `in_review` or `approved`;
-- rejected campaigns and campaigns not yet entered into moderation remain editable subject to the existing editorial/ownership rules;
-- global `edit_post` capability enforcement so stale frontend forms, REST and other WordPress edit paths cannot bypass the moderation lock;
-- publication eligibility for campaigns that have entered Core moderation: only `approved` may newly enter WordPress `publish`, `future` or `private`;
-- duplicated or invalid moderation metadata fails closed for new publication attempts;
-- campaigns that never entered Core moderation retain their existing editorial compatibility, and already-published legacy content is not silently demoted;
-- REST publication attempts receive an explicit conflict error when moderation is not publication-eligible;
-- non-moderators cannot delete `submitted`, `in_review` or `approved` campaign snapshots, while `rejected` remains correctable and removable;
-- promoter dashboard and editor showing WordPress editorial state separately from Core moderation state;
-- promoter registration, submission, editing and dashboard flows;
-- payment-provider-neutral contribution ledger with idempotency;
-- immutable original contribution amounts and refund-safe adjustments;
-- authenticated current-user contribution dashboard derived from Core records;
-- dashboard net amounts derived from applied refund adjustments, never order totals;
-- dashboard reward entitlement derived from Core reward claims;
-- authenticated campaign-owner aggregate statistics;
-- campaign net funding, progress, contribution-state counts and reward-claim counts derived from Core authorities;
-- bounded day/week/month campaign contribution trends over selectable date ranges;
-- trend net value derived from current confirmed contributions minus current applied refunds and attributed to contribution creation periods;
-- aggregate campaign fulfillment counts by pending, processing, fulfilled and cancelled Core state;
-- pending-delivery workload and fulfillment completion rate derived only from Core fulfillment rows;
-- read-only campaign-scoped fulfillment reconciliation health diagnostics;
-- aggregate detection of active claims missing fulfillment, active claims stuck cancelled, reversed claims still open and reversed-after-fulfilled exceptions;
-- authenticated current-promoter portfolio statistics across every owned draft, pending and published campaign;
-- portfolio campaign counts, contribution totals, active entitlements, pending-delivery workload and fulfillment-health issue totals derived from existing Core campaign/health authorities;
-- portfolio net raised grouped by ISO campaign currency so unlike currencies are never cross-summed;
-- generic versioned rewards domain linked to campaigns;
-- frontend reward management and public reward presentation;
-- versioned reward-claims ledger with active/reversed lifecycle;
-- optional reward selection in the contribution form;
-- classic-cart and Store API / Checkout Blocks reward validation;
-- reward eligibility based on contribution value net of applied refunds;
-- safe claim reversal/reactivation after refunds;
-- public finite reward availability derived from active claims;
-- versioned reward-fulfillment state separate from entitlement;
-- immutable fulfillment transition events with source/reference idempotency;
-- automatic claim-lifecycle synchronization into fulfillment state;
-- bounded, idempotent backfill for historical active claims missing fulfillment;
-- authenticated campaign-scoped fulfillment management for promoters and administrators;
-- read-only campaign-scoped fulfillment audit timelines with event origin and stable idempotency reference;
-- explicit protection against manually cancelling/reactivating entitlement-owned fulfillment states;
-- HPOS-safe WooCommerce order and refund adapters;
-- authoritative net confirmed raised amount and campaign progress.
+## Main capabilities
 
-## Architecture principles
+- Campaign creation and management.
+- Promoter registration, dashboard, submission and editing flows.
+- Independent moderation states: `submitted`, `in_review`, `approved`, `rejected`.
+- Immutable moderation decision history and idempotent operations.
+- Publication eligibility gates separated from moderation state.
+- WooCommerce-backed contributions with HPOS-safe adapters.
+- Immutable contribution amounts with additive refund adjustments.
+- Net confirmed funding progress.
+- Generic rewards and optional reward selection during contribution checkout.
+- Reward claims with active/reversed lifecycle.
+- Finite reward availability derived from active claims.
+- Fulfillment lifecycle, management, audit and reconciliation health.
+- Contribution dashboard for authenticated supporters.
+- Campaign statistics and bounded contribution trends.
+- Promoter portfolio statistics with currency-safe aggregation.
+- Notification events, recipient resolution, delivery intents and email delivery operations.
+- Internationalization and accessibility hardening.
 
-- Generic WordPress Core; no CulturalFunding-specific business logic.
-- Campaign moderation state and WordPress editorial `post_status` are separate authorities.
-- Moderation state can describe review/approval/rejection but cannot itself publish, unpublish or change campaign visibility.
-- New frontend submissions remain WordPress `pending` and independently enter Core moderation as `submitted`.
-- The 0.6.1 compatibility backfill examines only pre-existing campaign rows that still have no `_cfwp_moderation_status` metadata.
-- Legacy `pending` maps to `submitted`; legacy `publish` is grandfathered to `approved`. This is a compatibility classification, not evidence that Crowdfunding WordPress historically recorded an approval decision.
-- Draft, private, trash and other editorial states are never inferred into moderation by the compatibility backfill.
-- Existing valid or invalid moderation metadata is never overwritten by the backfill; invalid stored state remains fail-closed for administrator review.
-- Backfill runs in bounded batches, is safe to retry, uses unique meta insertion and records completion only after no eligible legacy campaign remains.
-- Promoters never receive `moderate_cfwp_campaigns`; moderation is a distinct administrative authority from campaign editing, fulfillment and publication.
-- The moderation graph is: no moderation state → `submitted`; `submitted` → `in_review`/`approved`/`rejected`; `in_review` → `approved`/`rejected`; `rejected` → `submitted`; `approved` is terminal in this foundation.
-- Administrator decision authority accepts only `in_review`, `approved` and `rejected` as targets. `rejected → submitted` remains promoter resubmission, not a moderator decision.
-- Every moderator decision requires `moderate_cfwp_campaigns`, a signed-in actor and a stable `source + source_reference` idempotency key.
-- Current moderation state and immutable moderator-event history are committed in the same transaction; a failed event write rolls back the state transition.
-- Decision events store campaign ID, moderator WordPress user ID, previous/target state, source/reference and UTC timestamp, and are never updated or deleted by the moderation repository.
-- Replaying an existing source/reference is idempotent only when it identifies the same campaign and target state; conflicting reuse fails closed.
-- Missing, duplicated or invalid moderation metadata is never guessed during a moderator decision; it requires administrator review.
-- Legacy backfill classifications and ordinary promoter submissions are not retroactively fabricated as moderator decision events.
-- The moderation operations UI is a thin administrative client of `Campaign_Moderation_Repository`; it never writes moderation meta directly.
-- The moderation queue contains only current `submitted` and `in_review` campaigns and does not infer submission time from WordPress modified dates.
-- Every UI decision request is capability checked, nonce protected and carries a generated UUID that becomes the stable `admin_ui` idempotency reference.
-- The moderation detail view reads the immutable Core event ledger for history and never updates or deletes audit rows.
-- Opening the WordPress campaign editor remains a separate editorial action; approving in moderation does not publish the campaign.
-- A promoter may re-enter moderation only for a campaign they own that is still WordPress `pending` and currently Core `rejected`.
-- Promoter resubmission requires `edit_cfwp_campaigns` plus `edit_post` and calls only `Campaign_Moderation::mark_submitted()`; it never uses administrator decision authority.
-- Saving campaign content and resubmitting are separate requests. The editor never silently calls `mark_submitted()` while saving changes.
-- Resubmission never grants `moderate_cfwp_campaigns`, never publishes/unpublishes, never writes moderation meta directly and never touches WooCommerce.
-- Immutable administrator rejection events remain intact after promoter resubmission; resubmission is not fabricated as an administrator-decision event.
-- Promoter-facing campaign surfaces expose WordPress editorial and Core moderation status separately so `pending + rejected` cannot be mistaken for an active review.
-- Campaign content becomes immutable to non-moderators while Core moderation is `submitted`, `in_review` or `approved`; this protects the reviewed snapshot without changing WordPress `post_status`.
-- The moderation editing lock is enforced through WordPress `edit_post` capability mapping as well as the frontend editor, so REST or stale form submissions cannot bypass it.
-- `rejected` remains editable so the owner can correct content before explicit resubmission; campaigns with no moderation state retain their normal draft/pending editing rules.
-- Users with `moderate_cfwp_campaigns` are exempt from the moderation editing lock and retain separate editorial authority where WordPress grants it.
-- A campaign that has entered Core moderation may newly enter WordPress `publish`, `future` or `private` only when its single valid Core state is `approved`.
-- Publication eligibility is a prerequisite only: approval never invokes WordPress publication, scheduling or visibility APIs.
-- Campaigns without moderation metadata retain their pre-moderation editorial compatibility; already-published legacy campaigns are never automatically demoted by the gate.
-- Duplicated or invalid moderation metadata fails closed for new publication attempts.
-- REST and classic-editor publication paths share the same Core eligibility rule; REST returns an explicit conflict instead of silently implying success.
-- Non-moderators cannot delete a campaign while the moderation editing lock is active; moderators retain their separate WordPress deletion authority.
-- WooCommerce is the commerce/payment integration layer, not the owner of campaign, moderation, reward, claim, fulfillment or dashboard domain logic.
-- Reward definitions are Core records, never WooCommerce products by definition.
-- Reward selection is transport evidence, not a reservation or claim.
-- Reward claims represent entitlement; fulfillment represents operational delivery state.
-- A claim is created only after the Core contribution reaches `confirmed`.
-- Reward claims are historical Core records; reversal changes state but never deletes history.
-- Finite availability is derived from active claims and never stored as mutable inventory.
-- Fulfillment does not own stock, payment state or reward eligibility.
-- Each claim can have at most one fulfillment record.
-- Fulfillment current state is stored for efficient reads, while every real transition is preserved in an immutable event ledger.
-- New active claims create one `pending` fulfillment idempotently.
-- Reversed claims cancel only `pending` or `processing` fulfillment work.
-- Reactivated claims recover a cancelled fulfillment back to `pending` rather than creating a duplicate.
-- Repeated active/reversed cycles use distinct idempotent fulfillment event references derived from event sequence.
-- `fulfilled` is terminal and is never automatically changed when a claim is later reversed; the mismatch is surfaced for manual review.
-- Historical active claims missing fulfillment are reconciled in bounded batches through the same `ensure_for_claim()` authority used by normal Core creation.
-- Backfill reads claims but never mutates claim rows; completion is recorded only after no active claim remains without fulfillment.
-- Fulfillment management has its own `manage_cfwp_fulfillments` capability and does not grant promoters permission to edit published campaigns.
-- The management UI derives campaign authority from fulfillment → claim → reward and never trusts a browser-supplied campaign ID as permission.
-- Manual fulfillment management can advance only `pending → processing/fulfilled` and `processing → fulfilled`; cancellation/reactivation remain claim-lifecycle responsibilities.
-- Administrators may supervise other campaigns through their existing cross-campaign authority; promoters remain restricted to campaigns they own.
-- Fulfillment audit is a separate read-only surface using the same campaign authority and immutable event ledger.
-- Audit events are ordered chronologically and expose event ID, origin and stable source reference without introducing a second history store.
-- The audit component registers no write action and has no direct repository-transition, WooCommerce or SQL-write authority.
-- Fulfillment reconciliation health is a separate read-only aggregate surface; it never repairs records or exposes claim/fulfillment identities.
-- Health lifecycle drift is `active claim without fulfillment`, `active claim with cancelled fulfillment`, or `reversed claim still pending/processing`.
-- A reversed claim whose fulfillment is already `fulfilled` is counted separately as manual review because delivery is terminal and must not be undone automatically.
-- The contribution dashboard is authenticated and always scopes reads to `get_current_user_id()`; browser input cannot select another account.
-- Dashboard financial values come from the contribution and adjustment Core ledgers, not WooCommerce orders or editable user metadata.
-- Dashboard reward entitlement comes from Core reward claims; technical source references and customer PII are not exposed.
-- Guest contributions with `user_id = 0` are not attached heuristically to an authenticated account.
-- Campaign statistics are campaign-scoped aggregate reads; browser-selected campaign IDs are reauthorized against campaign ownership.
-- Campaign statistics reuse the authoritative net-confirmed total and expose only aggregate contribution/claim counts, never supporter rows or PII.
-- Campaign fulfillment statistics count only Core fulfillment rows joined through claim → reward → campaign; WooCommerce order status is never delivery authority.
-- Pending-delivery workload is `pending + processing`; fulfilment completion rate is `fulfilled / (pending + processing + fulfilled)` and excludes `cancelled` records from the denominator.
-- Fulfillment statistics never affect entitlement, reward availability or fulfillment lifecycle state.
-- Campaign trend filters are selectors only; authorization is resolved before any aggregate trend query runs.
-- Campaign trends are bounded to 366 days and use an allowlisted `day`, `week` or `month` bucket.
-- Trend net values use current Core status/refund facts and are attributed to contribution `created_at`; they are not presented as a reconstructed historical balance because contribution state transitions are not yet versioned as an event ledger.
-- `updated_at` is not treated as evidence of when a contribution entered a specific historical state.
-- Promoter portfolio statistics derive identity exclusively from `get_current_user_id()` and accept no browser-selected account identity.
-- Portfolio metrics reuse `Campaign_Statistics_Query` and `Fulfillment_Reconciliation_Health_Query`; the portfolio layer does not create alternate financial, entitlement, delivery or health formulas.
-- Portfolio net funding is grouped by campaign currency and unlike currencies are never added together.
-- Portfolio output remains aggregate: no supporter rows, claim IDs, fulfillment IDs, user IDs, emails, source references or WooCommerce customer/order data are exposed.
-- Fulfillment stores no billing, shipping, tracking or customer PII in this management/audit foundation.
-- Payment gateways remain WooCommerce concerns; Crowdfunding WordPress does not store card data.
-- Original contribution amounts are immutable; financial corrections are additive adjustment records.
-- Escaping, sanitization, capability checks, nonces and idempotency are mandatory.
-- Public APIs and persistent identifiers are compatibility contracts once released.
-- Features are extracted by responsibility, not copied wholesale from the reference implementation.
+## Engineering principles
+
+- One authority per responsibility.
+- No client-specific business logic in Core.
+- No migration or compatibility layer for external crowdfunding installations.
+- Public APIs and persistent identifiers become compatibility contracts once released.
+- Fail closed when authority or state is ambiguous.
+- Financial corrections are additive; original contribution amounts stay immutable.
+- Reward availability is derived, not stored as mutable inventory.
+- Guest identities are never heuristically attached to authenticated users.
+- Capability checks, nonces, sanitization, escaping and idempotency are mandatory.
+- Features are extracted by responsibility rather than copied from another implementation.
+
+## Internal upgrade compatibility
+
+The plugin may include bounded reconciliation/backfill logic for **its own previously released data contracts** when necessary. These internal upgrade mechanisms are distinct from importing or migrating an external crowdfunding system and remain governed by explicit versioned contracts.
 
 ## Roadmap
 
@@ -184,9 +73,9 @@ As of **0.6.6**, the repository includes:
 - **0.4.x** Rewards — complete.
 - **0.5.x** Contribution dashboards and campaign statistics — complete.
 - **0.6.x** Moderation and campaign workflow expansion — complete.
-- **0.7.x** Notifications and reporting.
-- **0.8.x** Internationalization and accessibility hardening.
-- **0.9.x** CulturalFunding compatibility/migration layer.
+- **0.7.x** Notifications and reporting — complete.
+- **0.8.x** Internationalization and accessibility hardening — complete.
+- **0.9.x** Product hardening, packaging, installation UX and release acceptance.
 - **1.0.0** Public commercial release.
 
 ## License
