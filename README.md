@@ -12,6 +12,7 @@ The plugin is not tied to any client, vertical, grant programme, previous crowdf
 
 **Product name:** Crowdfunding WordPress  
 **Manufacturer:** Kairoseth  
+**Current public release:** 1.0.0  
 **Primary promise:** Create and manage crowdfunding campaigns, contributions and rewards directly in WordPress, using WooCommerce for checkout and payments.
 
 ## Core architecture
@@ -46,6 +47,7 @@ The plugin is not tied to any client, vertical, grant programme, previous crowdf
 - Campaign statistics and bounded contribution trends.
 - Promoter portfolio statistics with currency-safe aggregation.
 - Notification events, recipient resolution, delivery intents and email delivery operations.
+- Canonical notification event names with bounded failed-delivery retries and fail-closed processing states.
 - Internationalization and accessibility hardening.
 
 ## Installation and first use
@@ -61,6 +63,12 @@ WooCommerce is optional when a site only needs to publish and manage campaigns. 
 The repository defines a clean Git archive contract for distribution. Pull requests build and validate an installable `crowdfunding-wordpress.zip` that contains the plugin runtime, `readme.txt`, assets and uninstall handler while excluding repository CI, development documentation and compatibility/migration code.
 
 The distribution gate also lints every packaged PHP file and rejects client/reference-implementation leakage before the ZIP can be considered releasable.
+
+## Notification reliability
+
+Notification delivery remains downstream from committed crowdfunding facts. Canonical event names such as `reward_claim.created` and `reward_fulfillment.status_changed` are preserved exactly when message keys are built.
+
+Confirmed failed email deliveries have bounded retries. `processing` rows are exposed for administrator review and are not automatically reclaimed, because an interrupted external send can have an ambiguous outcome. A delivery is reported as successful only after the delivery ledger has also confirmed its `sent` transition.
 
 ## Data retention and uninstall
 
@@ -94,7 +102,7 @@ The plugin may include bounded reconciliation/backfill logic for **its own previ
 - **0.7.x** Notifications and reporting — complete.
 - **0.8.x** Internationalization and accessibility hardening — complete.
 - **0.9.x** Product hardening, clean packaging, installation UX and release acceptance — complete.
-- **1.0.0** Public commercial release — next.
+- **1.0.0** Public commercial release — complete.
 
 ## License
 
