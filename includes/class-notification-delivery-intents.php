@@ -58,10 +58,14 @@ final class Notification_Delivery_Intents {
 	 * @return array<int,array<string,mixed>>
 	 */
 	public static function build( array $event, array $recipients ): array {
-		$event_key = isset( $event['event_key'] ) ? trim( (string) $event['event_key'] ) : '';
-		$name      = isset( $event['name'] ) ? sanitize_key( str_replace( '.', '_', (string) $event['name'] ) ) : '';
+		$event_key  = isset( $event['event_key'] ) ? trim( (string) $event['event_key'] ) : '';
+		$event_name = isset( $event['name'] ) ? trim( (string) $event['name'] ) : '';
 
-		if ( '' === $event_key || '' === $name ) {
+		if (
+			'' === $event_key ||
+			'' === $event_name ||
+			1 !== preg_match( '/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/', $event_name )
+		) {
 			return array();
 		}
 
@@ -85,7 +89,6 @@ final class Notification_Delivery_Intents {
 				continue;
 			}
 
-			$event_name = str_replace( '_', '.', $name );
 			$message_key = $event_name . '.' . $primary_role;
 			$intent_key  = substr( $event_key . ':wp_user:' . $user_id . ':' . $message_key, 0, 255 );
 
