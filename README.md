@@ -62,6 +62,10 @@ The repository defines a clean Git archive contract for distribution. Pull reque
 
 The distribution gate also lints every packaged PHP file and rejects client/reference-implementation leakage before the ZIP can be considered releasable.
 
+## Data retention and uninstall
+
+Uninstalling the plugin intentionally preserves crowdfunding operational data. Campaigns, contributions, rewards, fulfillment, moderation and notification records are not silently deleted. Any future destructive cleanup must remain an explicit administrator decision rather than an uninstall side effect.
+
 ## Engineering principles
 
 - One authority per responsibility.
@@ -89,8 +93,8 @@ The plugin may include bounded reconciliation/backfill logic for **its own previ
 - **0.6.x** Moderation and campaign workflow expansion — complete.
 - **0.7.x** Notifications and reporting — complete.
 - **0.8.x** Internationalization and accessibility hardening — complete.
-- **0.9.x** Product hardening, clean packaging, installation UX and release acceptance — in progress.
-- **1.0.0** Public commercial release.
+- **0.9.x** Product hardening, clean packaging, installation UX and release acceptance — complete.
+- **1.0.0** Public commercial release — next.
 
 ## License
 
