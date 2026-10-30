@@ -64,6 +64,7 @@ require_once CFWP_PLUGIN_DIR . 'includes/class-woocommerce-refund-adapter.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-woocommerce-reward-adapter.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-contribution-checkout.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-campaign-admin.php';
+require_once CFWP_PLUGIN_DIR . 'includes/class-getting-started-admin.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-campaign-submission.php';
 require_once CFWP_PLUGIN_DIR . 'includes/class-campaign-editor.php';

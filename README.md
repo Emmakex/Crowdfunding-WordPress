@@ -48,6 +48,20 @@ The plugin is not tied to any client, vertical, grant programme, previous crowdf
 - Notification events, recipient resolution, delivery intents and email delivery operations.
 - Internationalization and accessibility hardening.
 
+## Installation and first use
+
+Activation installs the plugin's own versioned tables and capabilities, registers the campaign post type and refreshes rewrite rules. No external migration or client-specific setup runs during activation.
+
+Administrators can open **Crowdfunding → Getting Started** or use the **Getting Started** link on the Plugins screen. This page is intentionally read-only: it shows installation status, WooCommerce availability, permalink and public-registration recommendations, direct links to campaign/notification operations, and the essential frontend shortcodes.
+
+WooCommerce is optional when a site only needs to publish and manage campaigns. It is required when contributions will be collected through checkout.
+
+## Distribution packaging
+
+The repository defines a clean Git archive contract for distribution. Pull requests build and validate an installable `crowdfunding-wordpress.zip` that contains the plugin runtime, `readme.txt`, assets and uninstall handler while excluding repository CI, development documentation and compatibility/migration code.
+
+The distribution gate also lints every packaged PHP file and rejects client/reference-implementation leakage before the ZIP can be considered releasable.
+
 ## Engineering principles
 
 - One authority per responsibility.
@@ -75,7 +89,7 @@ The plugin may include bounded reconciliation/backfill logic for **its own previ
 - **0.6.x** Moderation and campaign workflow expansion — complete.
 - **0.7.x** Notifications and reporting — complete.
 - **0.8.x** Internationalization and accessibility hardening — complete.
-- **0.9.x** Product hardening, packaging, installation UX and release acceptance.
+- **0.9.x** Product hardening, clean packaging, installation UX and release acceptance — in progress.
 - **1.0.0** Public commercial release.
 
 ## License

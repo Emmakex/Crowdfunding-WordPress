@@ -17,6 +17,7 @@ final class Plugin {
 	private Campaign_Admin $campaign_admin;
 	private Campaign_Moderation_Admin $campaign_moderation_admin;
 	private Campaign_Moderation_Backfill_Reconciler $campaign_moderation_backfill_reconciler;
+	private Getting_Started_Admin $getting_started_admin;
 	private Notification_Admin $notification_admin;
 	private Shortcodes $shortcodes;
 	private Campaign_Submission $campaign_submission;
@@ -44,6 +45,7 @@ final class Plugin {
 		$this->campaign_admin                         = new Campaign_Admin();
 		$this->campaign_moderation_admin              = new Campaign_Moderation_Admin();
 		$this->campaign_moderation_backfill_reconciler = new Campaign_Moderation_Backfill_Reconciler();
+		$this->getting_started_admin                  = new Getting_Started_Admin();
 		$this->notification_admin                     = new Notification_Admin();
 		$this->shortcodes                             = new Shortcodes();
 		$this->campaign_submission                    = new Campaign_Submission();
@@ -124,6 +126,7 @@ final class Plugin {
 		if ( is_admin() ) {
 			$this->campaign_admin->register();
 			$this->campaign_moderation_admin->register();
+			$this->getting_started_admin->register();
 			$this->notification_admin->register();
 		}
 	}
